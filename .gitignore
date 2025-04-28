@@ -1,0 +1,26 @@
+
+# Python virtual environments
+venv/
+
+# Python junk
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+
+# System files
+.DS_Store
+Thumbs.db
+
+
+
+# Logs
+*.log
+
+# Large model files
+*.h5
+*.ckpt
+*.pkl
+*.joblib
+*.pb
