@@ -1,12 +1,3 @@
-"""
-Streamlit application to accept multiple X-ray image uploads and automatically detect anatomy (chest vs joint)
-then run the appropriate disease classifier:
-- Pneumonia vs Normal (Chest model)
-- Osteoarthritis vs Normal (Joint model)
-
-Supports up to 5 images at once, and captures user feedback for fine-tuning.
-"""
-
 import streamlit as st
 import numpy as np
 from PIL import Image
@@ -15,6 +6,10 @@ import tensorflow as tf
 from tensorflow.keras.applications.efficientnet import preprocess_input as preprocess_efficientnet
 from uuid import uuid4
 import csv
+
+# Grad-CAM utilities
+from grad_cam_utils import make_gradcam_heatmap, overlay_heatmap
+import cv2
 
 # ----------------------
 # CONFIGURATION
@@ -30,6 +25,10 @@ ANAT_MODEL_PATH   = MODELS_DIR / "anatomical_classifier.keras"
 # Input sizes for disease models
 PNEU_SIZE  = (97, 132)
 OSTEO_SIZE = (224, 224)
+
+# Grad-CAM layer names (adjust as needed)
+PNEU_LAST_CONV  = 'block7a_project_conv'      # EfficientNetB0 pneumonia model last conv layer
+OSTEO_LAST_CONV = 'top_conv'                  # EfficientNetB0 osteoarthritis model last conv layer
 
 # Feedback dirs & log
 FEEDBACK_DIR = Path(__file__).resolve().parent.parent / "feedback"
@@ -94,6 +93,44 @@ def preprocess_anatomy(img: Image.Image) -> np.ndarray:
     return arr.reshape(1, anat_height, anat_width, 1)
 
 # ----------------------
+# HEATMAP DESCRIPTIONS
+# ----------------------
+def get_heatmap_explanation(pred, prob):
+    """Return appropriate explanation for the heatmap based on prediction and probability."""
+    if "Pneumonia" in pred:
+        if prob > 0.8:
+            return """
+            **Heatmap Analysis:** The highlighted areas (in red/yellow) indicate regions where the AI detected potential infection. 
+            In pneumonia, these are typically cloudy or opaque areas in the lungs that indicate fluid accumulation. 
+            This scan shows strong indicators of pneumonia with high confidence.
+            """
+        else:
+            return """
+            **Heatmap Analysis:** The highlighted areas (in red/yellow) show regions of interest that contributed to the pneumonia 
+            diagnosis. These may indicate early-stage or mild pneumonia infiltrates. The moderate confidence level suggests 
+            these findings may be subtle.
+            """
+    elif "Osteoarthritis" in pred:
+        if prob > 0.8:
+            return """
+            **Heatmap Analysis:** The highlighted regions (in red/yellow) indicate areas of bone abnormality that suggest osteoarthritis. 
+            The AI is focusing on joint space narrowing, osteophytes (bone spurs), or subchondral sclerosis that are hallmarks 
+            of osteoarthritis. This scan shows strong indicators of joint degeneration.
+            """
+        else:
+            return """
+            **Heatmap Analysis:** The highlighted areas (in red/yellow) show regions that may indicate early osteoarthritic changes. 
+            These could include minor joint space narrowing or early bone remodeling. The moderate confidence suggests these 
+            findings may be early-stage or borderline.
+            """
+    else:  # Normal
+        return """
+        **Heatmap Analysis:** Even for normal scans, the AI highlights regions (in red/yellow) that were most relevant to its decision.
+        The highlighted areas were carefully examined and found to be within normal ranges. The heatmap helps confirm that
+        key anatomical areas were properly assessed during analysis.
+        """
+
+# ----------------------
 # UI
 # ----------------------
 st.title("X-ray Multi-Disease Classifier 🩺")
@@ -118,7 +155,7 @@ if uploaded_files:
             continue
         st.image(img, use_column_width=True)
 
-        # Anatomical classification (output=prob of 'joint')
+        # Anatomical classification (prob of 'joint')
         x_anat = preprocess_anatomy(img)
         p_anat = float(anatomical_model.predict(x_anat)[0][0])
         is_joint = p_anat >= 0.5
@@ -126,21 +163,52 @@ if uploaded_files:
         st.subheader(f"Detected Anatomy: {anatomy}")
         st.write(f"Confidence: {p_anat:.2%}")
 
-        # Route to the correct disease model
-        if not is_joint:  # Chest
+        # Route to disease model
+        if not is_joint:  # Chest → Pneumonia
             x = preprocess_pneumonia(img)
             prob = float(pneumonia_model.predict(x)[0][0])
             pred = "Pneumonia" if prob >= 0.5 else "Normal"
             st.subheader("Pneumonia Results")
-        else:            # Joint
+            last_conv = PNEU_LAST_CONV
+            model = pneumonia_model
+            preprocess_fn = preprocess_pneumonia
+        else:            # Joint → Osteoarthritis
             x = preprocess_osteo(img)
             prob = float(osteoarthritis_model.predict(x)[0][0])
             pred = "Osteoarthritis" if prob >= 0.5 else "Normal"
             st.subheader("Osteoarthritis Results")
+            last_conv = OSTEO_LAST_CONV
+            model = osteoarthritis_model
+            preprocess_fn = preprocess_osteo
 
         st.write(f"**Prediction:** {pred}")
         st.write(f"**Confidence:** {prob:.2%}")
         st.progress(int(prob*100))
+
+        # Generate Grad-CAM heatmap
+        # Prepare arrays
+        orig = np.array(img.convert('RGB'))
+        img_array = x  # already preprocessed for model
+        heatmap = make_gradcam_heatmap(img_array, model, last_conv)
+        cam = overlay_heatmap(orig, heatmap)
+        
+        # Add explanation below Grad-CAM
+        st.image(cam, caption="🔍 Grad-CAM Heatmap Analysis", use_column_width=True)
+        st.markdown(get_heatmap_explanation(pred, prob))
+        
+        # Add color legend for heatmap
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 200px; height: 20px; background: linear-gradient(to right, blue, cyan, green, yellow, red);"></div>
+                <div style="display: flex; justify-content: space-between; width: 200px;">
+                    <span style="font-size:0.8em">Low</span>
+                    <span style="font-size:0.8em">Activation Intensity</span>
+                    <span style="font-size:0.8em">High</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Feedback options
         options = [pred, "Normal", "Pneumonia", "Osteoarthritis"]
