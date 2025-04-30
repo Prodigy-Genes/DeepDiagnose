@@ -18,7 +18,7 @@ st.set_page_config(page_title="X-ray Multi-Disease Classifier", layout="centered
 
 # Model paths
 MODELS_DIR       = Path(__file__).resolve().parent.parent / "models"
-PNEU_MODEL_PATH  = MODELS_DIR / "pneumonia_classifier_1.keras"
+PNEU_MODEL_PATH  = MODELS_DIR / "pneumonia_classifier1.keras"
 OSTEO_MODEL_PATH = MODELS_DIR / "osteo_efficientnetb0.keras"
 ANAT_MODEL_PATH  = MODELS_DIR / "anatomical_classifier.keras"
 
@@ -172,13 +172,9 @@ st.write(
 
 # Visualization options for contoured spots
 st.sidebar.header("Visualization Settings")
-color_scheme = st.sidebar.selectbox(
-    "Color palette:",
-    ('hot', 'viridis', 'cool', 'rainbow'),
-    index=0
-)
-max_spots = st.sidebar.slider("Maximum spots to show:", 3, 10, 6)
-alpha_value = st.sidebar.slider("Spot transparency:", 0.3, 0.8, 0.5, 0.05)
+color_scheme = 'viridis'
+max_spots = 6
+alpha_value = 0.4
 
 uploaded_files = st.file_uploader(
     "Choose up to 5 X-ray images (PNG/JPEG)",
@@ -209,7 +205,7 @@ if uploaded_files:
         if not is_joint:
             x = preprocess_pneumonia(img)
             prob = float(pneumonia_model.predict(x)[0][0])
-            pred = "Pneumonia" if prob >= 0.84 else "Normal"
+            pred = "Pneumonia" if prob >= 0.81 else "Normal"
             st.subheader("Pneumonia Analysis")
             last_conv = PNEU_LAST_CONV
             model = pneumonia_model
