@@ -4,3 +4,4 @@ tensorflow
 pillow
 scikit-learn
 python-multipart
+numpy
