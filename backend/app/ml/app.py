@@ -15,9 +15,9 @@ st.set_page_config(page_title="X-ray Disease Classifier 🩺", layout="centered"
 # project structure
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
-MODELS_DIR = ROOT_DIR / "models"
-PNEU_METRICS = ROOT_DIR / "pneu_metrics"
-ANAT_METRICS = ROOT_DIR / "ana_metrics"
+MODELS_DIR = BASE_DIR / "models"
+PNEU_METRICS = BASE_DIR / "pneu_metrics"
+ANAT_METRICS = BASE_DIR / "ana_metrics"
 
 # Load pneumonia metrics
 def load_pneu_metrics():
