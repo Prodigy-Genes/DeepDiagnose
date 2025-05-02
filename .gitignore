@@ -1,22 +1,35 @@
-
 # Python virtual environments
 venv/
+.venv/
+env/
+ENV/
+*.venv/
 
-# Python junk
+# Conda environments
+.env/
+.conda/
+conda*/
+miniconda*/
+anaconda*/
+
+# Python cache and build artifacts
 __pycache__/
 *.py[cod]
 *.so
 *.egg
 *.egg-info/
+dist/
+build/
+pip-selfcheck.json
 
 # System files
 .DS_Store
 Thumbs.db
-
-
+desktop.ini
 
 # Logs
 *.log
+logs/
 
 # Large model files
 *.h5
@@ -24,3 +37,26 @@ Thumbs.db
 *.pkl
 *.joblib
 *.pb
+*.keras
+*.pth
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment files
+.env
+*.env
+.env.local
+
+# Alembic files
+/alembic/versions/*.py
+!alembic/versions/__init__.py/alembic/versions/*.py
+.env
