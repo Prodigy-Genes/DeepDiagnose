@@ -17,6 +17,8 @@ from backend.app.ml.grad_cam_utils import (
     overlay_heatmap
 )
 
+# Import explanation utilities
+from backend.app.api.explanation_utils import generate_patient_explanation
 # ----------------------
 # PATH CONFIGURATION
 # ----------------------
@@ -100,6 +102,8 @@ def preprocess_anatomy(img: Image.Image):
     arr = (arr - anat_norm['train_pixel_mean']) / (anat_norm['train_pixel_std'] + 1e-8)
     return arr.reshape(1, h, w, 1)
 
+# We're now importing generate_detailed_explanation from explanation.py
+
 # contour parameters
 CONTOURS = {
     'pneumonia':     {'threshold': 0.2,  'alpha': 0.6,  'color_scheme': 'viridis', 'adaptive_threshold': True,  'min_spot_area': 5},
@@ -173,13 +177,23 @@ async def predict(file: UploadFile = File(...)):
     Image.fromarray(overlay).save(buf, format='PNG')
     img_b64 = base64.b64encode(buf.getvalue()).decode()
 
-    return {
+    output = {
         "anatomy":             anatomy,
         "anatomy_confidence":  round(an_conf, 3),
         "disease":             disease,
         "disease_confidence":  round(d_conf, 3),
         "overlay_image":       f"data:image/png;base64,{img_b64}"
     }
+
+    # Generate a single-paragraph, patient-facing explanation
+    explanation_text = generate_patient_explanation(
+        model_output=output,
+        heatmap=heat
+    )
+    output['explanation'] = explanation_text
+
+    
+    return output
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
