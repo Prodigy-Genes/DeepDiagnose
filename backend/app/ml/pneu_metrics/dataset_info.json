@@ -1,0 +1,24 @@
+{
+  "original_image_shape": [
+    97,
+    132
+  ],
+  "train_size": 4684,
+  "test_size": 1172,
+  "train_class_counts": {
+    "PNEUMONIA": 3418,
+    "NORMAL": 1266
+  },
+  "test_class_counts": {
+    "PNEUMONIA": 855,
+    "NORMAL": 317
+  },
+  "resize_to": {
+    "width": 132,
+    "height": 97
+  },
+  "label_encoder_classes": [
+    "NORMAL",
+    "PNEUMONIA"
+  ]
+}

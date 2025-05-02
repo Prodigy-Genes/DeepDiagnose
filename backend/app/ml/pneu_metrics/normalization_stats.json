@@ -1,0 +1,5 @@
+{
+  "scale_divisor": 255.0,
+  "train_pixel_mean": 0.48211419582366943,
+  "train_pixel_std": 0.2361483871936798
+}
