@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+tensorflow
+pillow
+scikit-learn
+python-multipart
+numpy
+streamlit
+psycopg2-binary
+sqlalchemy
+python-dotenv
+alembic
+scikit-image

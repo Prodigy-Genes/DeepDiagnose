@@ -1,26 +1,33 @@
-
-# Python virtual environments
-venv/
-
-# Python junk
-__pycache__/
-*.py[cod]
-*.so
-*.egg
-*.egg-info/
-
 # System files
 .DS_Store
 Thumbs.db
+*.swp
 
+# IDE
+.idea/
+.vscode/
+*.iml
 
+# Conda/Virtual Environments
+.env/
+.venv/
+venv/
+conda*/
+miniconda*/
+anaconda*/
 
-# Logs
-*.log
+# Build/CI
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+pip-selfcheck.json
 
-# Large model files
+# Large files (root level only)
 *.h5
 *.ckpt
 *.pkl
 *.joblib
 *.pb
+*.keras

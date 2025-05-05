@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-tensorflow
-pillow
-scikit-learn
-python-multipart
-numpy

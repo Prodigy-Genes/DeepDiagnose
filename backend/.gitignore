@@ -1,0 +1,69 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+*.pyd
+*.pyo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+
+# Alembic migration artifacts
+alembic/versions/__pycache__/
+alembic/versions/*.pyc
+alembic/versions/*.pyo
+
+# SQLite (if any used for testing)
+*.sqlite3
+
+
+# Large ML model files
+*.h5
+*.ckpt
+*.pkl
+*.joblib
+*.pb
+*.keras
+*.tflite
+
+# VS Code settings
+.vscode/
+
+# PyCharm project settings
+.idea/
+
+# Pytest and other caches
+.pytest_cache/
+.cache/
+.mypy_cache/
+
+# Coverage and test artifacts
+.coverage
+htmlcov/
+coverage.xml
+
+# Build artifacts
+build/
+dist/
+*.manifest
+*.spec
+
+# Backup and temp files
+*.bak
+*.swp
+*.tmp
+*~
