@@ -62,7 +62,11 @@ If you have a GPU, install tensorflow-gpu instead of tensorflow.
 Ensure models are in place under models/ with the correct names.
 
 Launch Streamlit:
-streamlit run backend/app.py
+cd backend
+cd app
+cd ml
+
+streamlit run app.py
 
 Open the local URL printed in your console (e.g. http://localhost:8501).
 
@@ -81,6 +85,11 @@ A log feedback_log.csv keeps track of filename, predicted vs corrected labels.
 
 Future training runs can include this feedback data to continually improve accuracy.
 
+
+🖥️ Running the API
+cd backend
+cd app
+uvicorn api.xray_diagnosis_api:app --reload
 
 
 🤝 Contributing

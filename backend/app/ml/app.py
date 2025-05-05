@@ -108,7 +108,7 @@ iCONTOUR_PARAMS = {
 # ----------------------
 # STREAMLIT LAYOUT
 # ----------------------
-ANAT_CONF_MARGIN = 0.9
+ANAT_CONF_MARGIN = 0.85
 
 st.title('X-ray Disease Classifier 🩺')
 st.write('Upload up to 5 chest or knee X-ray images')

@@ -11,14 +11,14 @@ import json
 import base64
 
 # Grad-CAM utilities
-from backend.app.ml.grad_cam_utils import (
+from ml.grad_cam_utils import (
     make_gradcam_heatmap,
     create_contoured_spot_heatmap,
     overlay_heatmap
 )
 
 # Import explanation utilities
-from backend.app.api.explanation_utils import generate_patient_explanation
+from api.explanation_utils import generate_patient_explanation
 # ----------------------
 # PATH CONFIGURATION
 # ----------------------
@@ -132,14 +132,14 @@ async def predict(file: UploadFile = File(...)):
         anatomy, an_conf = 'joint', pa
     else:
         anatomy, an_conf = 'chest', 1 - pa
-    if an_conf < 0.9:
-        return JSONResponse(status_code=400, content={"error": "Anatomy uncertain"})
+    if an_conf < 0.85:
+        return JSONResponse(status_code=400, content={"error": "Anatomy uncertain, Please upload a clearer image"})
 
     # Disease selection & preprocessing
     if anatomy == 'joint':
         x       = preprocess_osteo(img)
         model   = osteo_model
-        threshold = anat_thresh          # exactly as in Streamlit
+        threshold = anat_thresh         
         label     = 'Osteoarthritis'
         last_conv = None
     else:
