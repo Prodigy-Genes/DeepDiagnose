@@ -108,7 +108,7 @@ iCONTOUR_PARAMS = {
 # ----------------------
 # STREAMLIT LAYOUT
 # ----------------------
-ANAT_CONF_MARGIN = 0.85
+ANAT_CONF_MARGIN = 0.85 # Minimum confidence for anatomy classification
 
 st.title('X-ray Disease Classifier 🩺')
 st.write('Upload up to 5 chest or knee X-ray images')
