@@ -1,9 +1,6 @@
 import React, { useState } from "react";
-import ImageUpload from "./components/ImageUpload/ImageUpload";
-// This component allows users to upload an image and get a prediction from the server
-import PredictionResult from "./components/PredictionResult/PredictionResult";
-import "./styles/App.css";
-
+import "./App.css";
+import Home from "./pages/Home/home"
 // This component handles the prediction results and displays them to the user
 // It uses the useState hook to manage the state of the prediction result
 function App() {
@@ -11,9 +8,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>DeepDiagnose</h1>
-      <ImageUpload onResult={setResult} />
-      <PredictionResult result={result} />
+      <Home />
     </div>
   );
 }

@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import '@fontsource/orbitron'           // all weights of Orbitron
+import '@fontsource/abril-fatface'      // all weights of Abril Fatface
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
