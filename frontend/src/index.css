@@ -37,3 +37,7 @@ code {
   scrollbar-width: thin;
   scrollbar-color: #00eeff #0d346e;
 }
+
+html {
+  scroll-behavior: smooth;
+}

@@ -1,8 +1,100 @@
-body {
-    margin: 0;
-    padding: 0;
-    background-color: rgb(255, 255, 255);
-    color: rgb(0, 0, 0); 
-    width: 100vw;
+/* src/pages/About.css */
+.about-section {
+  padding: 3rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
+.about-section h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 32px;
+  margin-bottom: 1.5rem;
+  color: #0a1f44;
+  position: relative;
+}
+
+.about-section h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 80px;
+  height: 3px;
+  background: linear-gradient(90deg, rgb(0, 208, 255) 0%, rgb(0, 136, 255) 100%);
+  border-radius: 3px;
+}
+
+.about-section h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  margin: 2rem 0 1rem;
+  color: #172b4d;
+}
+
+.about-section p {
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.team-button-container {
+  margin: 3rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.team-button-container .read-about-us {
+  padding: 0.8rem 2.5rem;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+  background: linear-gradient(90deg, rgb(0, 208, 255) 0%, rgb(0, 136, 255) 100%);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 25px rgba(0, 208, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.team-button-container .read-about-us:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 0 35px rgba(0, 208, 255, 0.8);
+}
+
+.team-button-container .read-about-us:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 0 15px rgba(0, 208, 255, 0.7);
+}
+
+/* Button glow effect */
+.team-button-container .read-about-us::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(45deg);
+  transition: all 0.5s ease;
+  opacity: 0;
+}
+
+.team-button-container .read-about-us:hover::before {
+  opacity: 1;
+  animation: shine 1.5s infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -150%;
+  }
+  100% {
+    left: 100%;
+  }
+}

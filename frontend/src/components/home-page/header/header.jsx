@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './header.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import { NavLink } from 'react-router-dom';
+
 
 export default function Header() {
-  const phrases = [
+  const phrases = useMemo(() => [
     'Your AI-Powered X-Ray Diagnosis',
     'Instant Results, Expert Insights',
     'Detect anomalies in seconds',
     'Empowering Radiologists Everywhere',
-  ];
+  ], []);
 
   const [index, setIndex] = useState(0);      // which phrase
   const [subIndex, setSubIndex] = useState(0); // how many letters
@@ -35,7 +37,7 @@ export default function Header() {
     }, reverse ? 50 : 150);
 
     return () => clearTimeout(timeout);
-  }, [subIndex, index, reverse]);
+  }, [subIndex, index, reverse, phrases]);
 
   // Cursor blink
   useEffect(() => {
@@ -63,10 +65,10 @@ export default function Header() {
         </div>
 
         <nav className="menu-container">
-          <a href="#">Home</a>
-          <a href="#">About Us</a>
-          <a href="#">Services</a>
-          <a href="#">Contact Us</a>
+          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>Home</NavLink>
+          <NavLink to="/about" className={({ isActive }) => isActive ? 'active' : ''}>About Us</NavLink>
+          <NavLink to="/services" className={({ isActive }) => isActive ? 'active' : ''}>Services</NavLink>
+          <NavLink to="/contact" className={({ isActive }) => isActive ? 'active' : ''}>Contact Us</NavLink>
         </nav>
 
         <div className="social-container">
