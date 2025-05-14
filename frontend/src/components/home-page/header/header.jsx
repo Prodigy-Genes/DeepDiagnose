@@ -64,7 +64,7 @@ export default function Header() {
 
         <nav className="menu-container">
           <a href="#">Home</a>
-          <a href="#">About</a>
+          <a href="#">About Us</a>
           <a href="#">Services</a>
           <a href="#">Contact Us</a>
         </nav>
