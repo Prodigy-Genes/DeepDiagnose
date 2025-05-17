@@ -31,3 +31,5 @@ pip-selfcheck.json
 *.joblib
 *.pb
 *.keras
+
+.env
