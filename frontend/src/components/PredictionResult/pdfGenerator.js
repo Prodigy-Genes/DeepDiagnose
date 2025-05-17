@@ -439,7 +439,7 @@ export const generateMedicalReport = (result) => {
               </div>
             </div>
             <div class="copyright">
-              © ${new Date().getFullYear()} CardioVision AI System. All rights reserved. | Generated using advanced machine learning algorithms.
+              © ${new Date().getFullYear()} deepdiagnose. All rights reserved. | Generated using advanced machine learning algorithms.
             </div>
           </footer>
         </div>
