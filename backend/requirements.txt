@@ -10,4 +10,3 @@ psycopg2-binary
 sqlalchemy
 python-dotenv
 alembic
-scikit-image

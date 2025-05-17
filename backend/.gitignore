@@ -31,15 +31,6 @@ alembic/versions/*.pyo
 *.sqlite3
 
 
-# Large ML model files
-*.h5
-*.ckpt
-*.pkl
-*.joblib
-*.pb
-*.keras
-*.tflite
-
 # VS Code settings
 .vscode/
 
