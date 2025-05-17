@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import './header.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { NavLink } from 'react-router-dom';
+import GetStarted from './GetStarted';
 
 
 export default function Header() {
@@ -83,9 +84,8 @@ export default function Header() {
       <div className="site-title">
         <h1>deepdiagnose</h1>
         <h3>{`${phrases[index].substring(0, subIndex)}${blink ? '|' : ' '}`}</h3>
-        <div className="cta-button-container">
-          <button className="get-started-btn">Get Started</button>
-        </div>
+        <GetStarted />
+
       </div>
       
     </header>
