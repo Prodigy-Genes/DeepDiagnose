@@ -1,11 +1,14 @@
-// src/components/Header.jsx
 import './a-header.css'; 
 import '@fortawesome/fontawesome-free/css/all.min.css'; 
 import { NavLink } from 'react-router-dom';
+import MiniHeader from './MiniHeader';
 
 // Add onReadAboutUs prop to handle the button click
 export default function Header({ onReadAboutUs }) {
   return (
+  <>  
+    {/* Mini header */}
+    <MiniHeader />
     <header className="a-header-container">
       {/* Top row: logo | menu | socials */}
       <div className="a-top-row">
@@ -48,5 +51,6 @@ export default function Header({ onReadAboutUs }) {
         </div>
       </div>
     </header>
+  </>
   );
 }
