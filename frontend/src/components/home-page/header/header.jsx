@@ -67,8 +67,7 @@ export default function Header() {
         <nav className="menu-container">
           <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>Home</NavLink>
           <NavLink to="/about" className={({ isActive }) => isActive ? 'active' : ''}>About Us</NavLink>
-          <NavLink to="/services" className={({ isActive }) => isActive ? 'active' : ''}>Services</NavLink>
-          <NavLink to="/contact" className={({ isActive }) => isActive ? 'active' : ''}>Contact Us</NavLink>
+          <NavLink to="/api-docs" className={({ isActive }) => isActive ? 'active' : ''}>API Docs</NavLink>
         </nav>
 
         <div className="social-container">

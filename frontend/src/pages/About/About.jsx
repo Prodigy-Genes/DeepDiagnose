@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Header from '../../components/about-page/header/a-header';
 import DevelopersInfo from '../../components/about-page/developers_info/developers_info'; // Import the DevelopersInfo component
 import './About.css'; // Import the About page CSS
+import Footer from '../../components/home-page/footer/footer';
 
 export default function About() {
   const [showDevelopersInfo, setShowDevelopersInfo] = useState(false);
@@ -70,6 +71,7 @@ export default function About() {
         isOpen={showDevelopersInfo}
         onClose={() => setShowDevelopersInfo(false)}
       />
+      <Footer/>
     </div>
   );
 }

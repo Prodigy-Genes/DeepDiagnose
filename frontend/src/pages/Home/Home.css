@@ -7,3 +7,14 @@ body {
     
 }
 
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* full viewport height */
+  margin: 0;          /* reset any default body margin */
+}
+
+/* Let the main section grow to push footer down */
+.content {
+  flex: 1;
+}
