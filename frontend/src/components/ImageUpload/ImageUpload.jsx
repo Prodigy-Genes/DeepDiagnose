@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import axios from "axios";
 import "./ImageUpload.css";
 
 // This component allows users to upload an image and get a prediction from the server
@@ -8,10 +7,27 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
   const [loading, setLoading] = useState(false); // State to manage loading state
   const [dragActive, setDragActive] = useState(false); // State to manage drag and drop
   const [previewUrl, setPreviewUrl] = useState(null); // State to manage the preview URL of the image
+  const [error, setError] = useState(null); // State to manage error messages
   const fileInputRef = useRef(null); // Ref to manage the file input element
 
   const handleFileChange = (file) => {
     if (!file) return;
+    
+    // Clear any existing errors when a new file is selected
+    setError(null);
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/dicom'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.dcm')) {
+      setError("Please upload a valid image (JPEG, PNG or DICOM format)");
+      return;
+    }
+    
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size exceeds 10MB limit");
+      return;
+    }
     
     setImage(file);
     
@@ -19,6 +35,9 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
     const reader = new FileReader();
     reader.onload = () => {
       setPreviewUrl(reader.result);
+    };
+    reader.onerror = () => {
+      setError("Failed to read file. Please try again.");
     };
     reader.readAsDataURL(file);
   };
@@ -55,16 +74,39 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
     formData.append("file", image);
     
     setLoading(true);
+    setError(null);
+    
     // Notify parent component that upload has started
     if (onUploadStart) {
       onUploadStart();
     }
     
     try {
-      const response = await axios.post("http://localhost:8000/predict", formData);
-      onResult(response.data);
+      const response = await fetch("http://127.0.0.1:8000/predict", {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Server error. Please try again.");
+      }
+      
+      const data = await response.json();
+      onResult(data);
     } catch (err) {
-      alert("Prediction failed! Please try again.");
+      // Handle different types of errors
+      if (err.message.includes("X-ray")) {
+        setError("This doesn't appear to be an X-ray image. Please upload a valid X-ray scan.");
+      } else if (err.message.includes("clearer image")) {
+        setError("The image quality is too low for analysis. Please upload a clearer X-ray image.");
+      } else if (err.name === "AbortError") {
+        setError("Request timed out. Please check your connection and try again.");
+      } else if (!navigator.onLine) {
+        setError("You appear to be offline. Please check your internet connection.");
+      } else {
+        setError(err.message || "Analysis failed. Please try again with a different image.");
+      }
     } finally {
       setLoading(false);
     }
@@ -73,6 +115,7 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
   const resetImage = () => {
     setImage(null);
     setPreviewUrl(null);
+    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -81,9 +124,48 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
   return (
     <div className="image-upload-container">
       <div className="upload-card">
+        {error && (
+          <div className="error-message">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v4h2v-4h-2zm0-6v2h2V5h-2z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>{error}</span>
+            <button
+              className="dismiss-error"
+              onClick={() => setError(null)}
+              aria-label="Dismiss error"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 18L18 6M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {!previewUrl ? (
-          <div 
-            className={`dropzone ${dragActive ? "dropzone-active" : ""}`}
+          <div
+            className={`dropzone ${dragActive ? "dropzone-active" : ""} ${error ? "dropzone-error" : ""}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -94,31 +176,31 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => handleFileChange(e.target.files[0])}
-              accept="image/*"
+              accept="image/*,.dcm"
               className="file-input"
             />
             <div className="dropzone-content">
               <div className="lungs-icon">
-                <svg 
-                  width="60" 
-                  height="60" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
+                <svg
+                  width="60"
+                  height="60"
+                  viewBox="0 0 24 24"
+                  fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path 
-                    d="M12 2C10.5 2 9.5 3 9.5 4.5V9.5C9.5 11 6 13 6 17C6 19.5 7.5 22 11 22C13 22 14 21 14 19.5V13" 
-                    stroke="currentColor" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
+                  <path
+                    d="M12 2C10.5 2 9.5 3 9.5 4.5V9.5C9.5 11 6 13 6 17C6 19.5 7.5 22 11 22C13 22 14 21 14 19.5V13"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                  <path 
-                    d="M12 2C13.5 2 14.5 3 14.5 4.5V9.5C14.5 11 18 13 18 17C18 19.5 16.5 22 13 22C11 22 10 21 10 19.5V13" 
-                    stroke="currentColor" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
+                  <path
+                    d="M12 2C13.5 2 14.5 3 14.5 4.5V9.5C14.5 11 18 13 18 17C18 19.5 16.5 22 13 22C11 22 10 21 10 19.5V13"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 </svg>
               </div>
@@ -131,10 +213,10 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
           </div>
         ) : (
           <div className="preview-container">
-            <div className="image-preview-wrapper">
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
+            <div className={`image-preview-wrapper ${error ? "preview-error" : ""}`}>
+              <img
+                src={previewUrl}
+                alt="Preview"
                 className="image-preview"
               />
               <div className="overlay-grid">
@@ -152,22 +234,22 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
                   <span className="stat-value">X-Ray</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={resetImage}
                 className="remove-button"
                 title="Remove image"
               >
-                <svg 
-                  className="remove-icon" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
+                <svg
+                  className="remove-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
@@ -176,36 +258,48 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
             <div className="file-info-container">
               <div className="file-info">
                 <i className="fas fa-file-medical"></i>
-                <span>{image.name} ({(image.size / 1024).toFixed(1)} KB)</span>
+                <span>
+                  {image.name} ({(image.size / 1024).toFixed(1)} KB)
+                </span>
               </div>
             </div>
           </div>
         )}
-        
-        <div className="button-container">
-          <button
-            onClick={handleSubmit}
-            disabled={!image || loading}
-            className={`analyze-button ${(!image || loading) ? "button-disabled" : ""}`}
-          >
-            {loading ? (
-              <>
-                <svg className="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="spinner-track" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="spinner-path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
-              <>
-                <span className="button-icon">
-                  <i className="fas fa-brain"></i>
-                </span>
-                <span>Analyze with AI</span>
-              </>
-            )}
-          </button>
-        </div>
+
+        <div className="button-container"></div>
+        <button
+          onClick={handleSubmit}
+          disabled={!image || loading}
+          className={`analyze-button ${(!image || loading) ? "button-disabled" : ""}`}
+        >
+          {!loading ? (
+            <>
+              <span className="button-icon">
+                <i className="fas fa-brain"></i>
+              </span>
+              <span>Analyze with AI</span>
+            </>
+          ) : (
+            <span>Initializing...</span>
+          )}
+        </button>
+
+        {/* Processing visualization - shown when loading */}
+        {loading && (
+          <div className="processing-visualization">
+            <div className="processing-grid">
+              {[...Array(25)].map((_, index) => (
+                <div key={index} className="grid-cell"></div>
+              ))}
+            </div>
+            <div className="processing-text">
+              <div className="binary-code">
+                01001100 01001111 01000001 01000100 01001001 01001110 01000111
+              </div>
+              <div className="analyzing-text">Analyzing X-ray patterns...</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
-import uvicorn
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+import uvicorn  # type: ignore
+from fastapi import FastAPI, File, UploadFile, HTTPException # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from fastapi.responses import JSONResponse # type: ignore
 import numpy as np
 from PIL import Image
 from io import BytesIO
@@ -9,6 +9,8 @@ from pathlib import Path
 import tensorflow as tf
 import json
 import base64
+from tensorflow.keras.applications.efficientnet import preprocess_input # type: ignore
+
 
 # Grad-CAM utilities
 from ml.grad_cam_utils import (
@@ -36,7 +38,7 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 # Pneumonia metrics
-pneu_info      = load_json(PNEU_METRICS / 'dataset_info.json')
+pneu_info      = load_json(PNEU_METRICS / 'dataset_info.json') 
 pneu_norm      = load_json(PNEU_METRICS / 'normalization_stats.json')
 line_pneu      = next(l for l in (PNEU_METRICS / 'thresholds.txt').read_text().splitlines() if 'opt_threshold' in l)
 pneu_thresh    = float(line_pneu.split('=')[1])
@@ -60,6 +62,7 @@ osteo_model = tf.keras.models.load_model(str(MODELS_DIR / 'osteo_efficientnetb0.
 # ----------------------
 app = FastAPI()
 app.add_middleware(
+    # CORS, to allow requests from the frontend 
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
@@ -70,15 +73,65 @@ app.add_middleware(
 # ----------------------
 # UTILITIES
 # ----------------------
-def is_likely_xray(arr: np.ndarray) -> bool:
-    if arr.ndim == 3 and arr.shape[2] == 3:
-        diffs = [arr[:,:,0] - arr[:,:,1],
-                 arr[:,:,0] - arr[:,:,2],
-                 arr[:,:,1] - arr[:,:,2]]
-        if np.std(diffs) > 15:
+# Check if the image is likely an X-ray
+# (based on the color channels and brightness)
+def is_likely_xray(arr: np.ndarray, gray_std_thresh: float = 1e-6,
+                    channel_diff_thresh: float = 15,
+                    intensity_min: float = 30,
+                    intensity_max: float = 220) -> bool:
+    """
+    Heuristic check to guess whether an image array is a grayscale X-ray-like image.
+
+    Parameters:
+    - arr: np.ndarray - 2D or 3D image array (H x W) or (H x W x C).
+    - gray_std_thresh: float - max std of per-pixel channel differences to treat as grayscale.
+    - channel_diff_thresh: float - threshold to early-reject strong color images.
+    - intensity_min, intensity_max: float - valid mean intensity window for X-ray.
+
+    Returns:
+    - bool: True if arr appears to be a grayscale X-ray-like image.
+    """
+    # Ensure numeric array
+    try:
+        img = np.asarray(arr)
+    except Exception:
+        return False
+
+    # If RGB, test channel similarity
+    if img.ndim == 3 and img.shape[-1] == 3:
+        # Compute per-channel differences
+        diffs = np.stack([
+            img[..., 0] - img[..., 1],
+            img[..., 0] - img[..., 2],
+            img[..., 1] - img[..., 2]
+        ], axis=0).astype(np.float32)
+        # If substantial color variation, reject
+        if np.std(diffs) > channel_diff_thresh:
             return False
-    gray = arr.mean(axis=-1) if arr.ndim == 3 else arr
-    return 30 <= gray.mean() <= 220
+        # Collapse to grayscale
+        gray = img.mean(axis=-1)
+    elif img.ndim == 2:
+        gray = img.astype(np.float32)
+    else:
+        # Unexpected shape
+        return False
+
+    # Normalize if float in [0, 1]
+    if np.issubdtype(gray.dtype, np.floating) and gray.max() <= 1.0:
+        gray = gray * 255
+
+    # Check mean intensity range
+    mean_val = float(gray.mean())
+    if not (intensity_min <= mean_val <= intensity_max):
+        return False
+
+    # Optional: Check overall contrast (std of gray)
+    if np.std(gray) < gray_std_thresh:
+        # Too low contrast
+        return False
+
+    return True
+
 
 def preprocess_pneumonia(img: Image.Image):
     h, w = pneu_size
@@ -92,7 +145,6 @@ def preprocess_osteo(img: Image.Image):
     im = img.convert('L').resize((224, 224))
     arr_gray = np.array(im, dtype=np.float32)
     arr_rgb  = np.stack([arr_gray]*3, axis=-1)
-    from tensorflow.keras.applications.efficientnet import preprocess_input
     return preprocess_input(arr_rgb).reshape(1, 224, 224, 3)
 
 def preprocess_anatomy(img: Image.Image):
@@ -123,20 +175,20 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(400, "Invalid image file")
     arr = np.array(img)
     if not is_likely_xray(arr):
-        return JSONResponse(status_code=400, content={"error": "Not a valid X-ray"})
+        return JSONResponse(status_code=400, content={"error": "I only accept X-ray images, please upload a valid X-ray image."})
 
     # Anatomy classification
     xa = preprocess_anatomy(img)
     pa = float(anat_model.predict(xa)[0,0])
     if pa >= anat_thresh:
-        anatomy, an_conf = 'joint', pa
+        anatomy, an_conf = 'Joint-scan', pa
     else:
-        anatomy, an_conf = 'chest', 1 - pa
-    if an_conf < 0.85:
-        return JSONResponse(status_code=400, content={"error": "Anatomy uncertain, Please upload a clearer image"})
+        anatomy, an_conf = 'Chest-scan', 1 - pa
+    if an_conf < 0.8:
+        return JSONResponse(status_code=400, content={"error": "OOPS!! I could not classify this image, Please upload a clearer image :)"})
 
     # Disease selection & preprocessing
-    if anatomy == 'joint':
+    if anatomy == 'Joint-scan':
         x       = preprocess_osteo(img)
         model   = osteo_model
         threshold = anat_thresh         

@@ -8,19 +8,15 @@ const UploadImage = () => {
   const [result, setResult] = useState(null);
   // State for animation control
   const [showAnimation, setShowAnimation] = useState(true);
-  // State to track if image is being processed
-  const [isProcessing, setIsProcessing] = useState(false);
 
   // Callback to receive prediction data
   const handleResult = (data) => {
     setResult(data);
-    setIsProcessing(false);
   };
 
   // Handle when upload begins
   const handleUploadStart = () => {
     setResult(null);
-    setIsProcessing(true);
   };
 
   // Hide intro animation after it plays
@@ -80,21 +76,6 @@ const UploadImage = () => {
               </p><br />
               <p>Upload your x-ray image to get AI-powered diagnosis assistance in seconds</p>
             </div>
-            
-            {/* Processing visualization */}
-            {isProcessing && (
-              <div className="processing-visualization">
-                <div className="processing-grid">
-                  {[...Array(25)].map((_, index) => (
-                    <div key={index} className="grid-cell"></div>
-                  ))}
-                </div>
-                <div className="processing-text">
-                  <div className="binary-code">01001100 01001111 01000001 01000100 01001001 01001110 01000111</div>
-                  <div className="analyzing-text">Analyzing X-ray patterns...</div>
-                </div>
-              </div>
-            )}
             
             {/* Image upload component */}
             <ImageUpload onResult={handleResult} onUploadStart={handleUploadStart} />
