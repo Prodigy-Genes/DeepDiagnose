@@ -24,3 +24,15 @@ dist/
 build/
 pip-selfcheck.json
 
+<<<<<<< HEAD
+=======
+# Large files (root level only)
+*.h5
+*.ckpt
+*.pkl
+*.joblib
+*.pb
+*.keras
+
+.env
+>>>>>>> b1980dbe9f3149b632329942e3b53a71d21fa5cb

@@ -88,7 +88,7 @@ def preprocess_osteo(img: Image.Image):
     im = img.convert('L').resize((224, 224))
     arr_gray = np.array(im, dtype=np.float32)
     arr = np.stack([arr_gray] * 3, axis=-1)
-    from tensorflow.keras.applications.efficientnet import preprocess_input
+    from tensorflow.keras.applications.efficientnet import preprocess_input # type: ignore
     return preprocess_input(arr).reshape(1, 224, 224, 3)
 
 # Anatomy preprocessing
@@ -108,7 +108,7 @@ iCONTOUR_PARAMS = {
 # ----------------------
 # STREAMLIT LAYOUT
 # ----------------------
-ANAT_CONF_MARGIN = 0.85
+ANAT_CONF_MARGIN = 0.85 # Minimum confidence for anatomy classification
 
 st.title('X-ray Disease Classifier 🩺')
 st.write('Upload up to 5 chest or knee X-ray images')
