@@ -114,6 +114,7 @@ app.add_middleware(
 def validate_medical_image(img: Image.Image) -> tuple[bool, str]:
     """
     Enhanced validation for medical scans (X-ray or CT) - rejects colored photos and non-medical images.
+    Accommodates CT scans which often have high contrast black/white regions.
     Returns (is_valid, reason_if_invalid)
     """
     try:
@@ -135,7 +136,7 @@ def validate_medical_image(img: Image.Image) -> tuple[bool, str]:
                 avg_color_diff = (np.mean(rg_diff) + np.mean(rb_diff) + np.mean(gb_diff)) / 3
                 
                 # If there's significant color variation, it's likely not a medical scan
-                if avg_color_diff > 15:  # Threshold for color difference
+                if avg_color_diff > 20:  # Slightly more lenient threshold
                     return False, "Image appears to be a colored photo, not a medical scan"
                 
                 # Check for high saturation - medical images should be low saturation
@@ -146,7 +147,7 @@ def validate_medical_image(img: Image.Image) -> tuple[bool, str]:
                     saturation = hsv_array[:,:,1]  # S channel
                     avg_saturation = np.mean(saturation)
                     
-                    if avg_saturation > 30:  # Medical images should have very low saturation
+                    if avg_saturation > 40:  # More lenient for medical images
                         return False, "Image has high color saturation, appears to be a photo"
                 except:
                     pass  # If HSV conversion fails, continue with other checks
@@ -164,141 +165,130 @@ def validate_medical_image(img: Image.Image) -> tuple[bool, str]:
         
         # 3. Aspect ratio check - more flexible
         aspect_ratio = max(h, w) / min(h, w)
-        if aspect_ratio > 5.0:
+        if aspect_ratio > 6.0:  # More lenient for CT scans
             return False, "Unusual aspect ratio for medical scan"
         
-        # 4. Intensity distribution analysis - enhanced for medical images
+        # 4. Intensity distribution analysis - ADAPTED FOR CT SCANS
         hist, _ = np.histogram(img_array, bins=256, range=(0, 255))
         
         # Check for completely uniform images
-        if np.sum(hist[:5]) > 0.98 * img_array.size:
+        if np.sum(hist[:3]) > 0.99 * img_array.size:
             return False, "Image appears to be completely black"
         
-        if np.sum(hist[250:]) > 0.98 * img_array.size:
+        if np.sum(hist[252:]) > 0.99 * img_array.size:
             return False, "Image appears to be completely white"
         
-        # 5. Medical-specific intensity distribution check
-        # Medical images typically have specific intensity patterns
-        # Most pixels should be in mid-range (bone/tissue), with some dark (air) and bright (dense structures)
-        dark_pixels = np.sum(hist[:50]) / img_array.size  # Very dark
-        mid_pixels = np.sum(hist[50:200]) / img_array.size  # Mid-range
-        bright_pixels = np.sum(hist[200:]) / img_array.size  # Bright
+        # 5. RELAXED intensity distribution for CT scans
+        # CT scans can have dominant black/white regions with less mid-range
+        dark_pixels = np.sum(hist[:80]) / img_array.size  # Expanded dark range
+        mid_pixels = np.sum(hist[80:180]) / img_array.size  # Mid-range
+        bright_pixels = np.sum(hist[180:]) / img_array.size  # Expanded bright range
         
-        # Photos often have more uniform distribution across all ranges
-        if mid_pixels < 0.3:  # Medical images should have substantial mid-range content
-            return False, "Intensity distribution not consistent with medical imaging"
+        # More lenient check - CT scans can have very little mid-range
+        if mid_pixels < 0.1 and (dark_pixels < 0.1 or bright_pixels < 0.1):
+            # Only reject if there's almost no variation at all
+            return False, "Image lacks sufficient intensity variation"
         
-        # 6. Dynamic range check
+        # 6. Dynamic range check - more lenient for CT
         img_std = np.std(img_array.astype(np.float32))
-        if img_std < 5:
+        if img_std < 3:  # Reduced from 5 to accommodate high-contrast CT
             return False, "Image lacks sufficient contrast"
         
-        # 7. Edge analysis - medical images have specific edge characteristics
-        edges = cv2.Canny(img_array, 30, 120)
+        # 7. Edge analysis - adapted for CT scans
+        edges = cv2.Canny(img_array, 20, 100)  # Lower thresholds for CT
         edge_density = np.sum(edges > 0) / (h * w)
         
-        if edge_density < 0.005:
+        if edge_density < 0.002:  # More lenient
             return False, "Image lacks anatomical structure"
         
-        if edge_density > 0.6:
+        if edge_density > 0.7:  # More lenient for high-contrast CT
             return False, "Image appears to be text or diagram"
         
-        # 8. Texture analysis - enhanced
+        # 8. Texture analysis - more lenient for CT
         laplacian_var = cv2.Laplacian(img_array, cv2.CV_64F).var()
-        if laplacian_var < 20:
+        if laplacian_var < 10:  # Reduced from 20
             return False, "Image appears too uniform (lacks medical texture)"
         
-        # 9. Local Binary Pattern analysis for texture characteristic of photos vs medical
-        # This helps distinguish natural photo textures from medical scan textures
-        try:
-            # Simple LBP-like analysis
-            kernel = np.array([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]])
-            texture_response = cv2.filter2D(img_array.astype(np.float32), -1, kernel)
-            texture_var = np.var(texture_response)
-            
-            # Photos typically have more complex, varied textures
-            # Medical images have more structured, diagnostic-relevant textures
-            if texture_var > 50000:  # Very high texture complexity
-                return False, "Image texture too complex for medical scan (appears to be photo)"
-        except:
-            pass  # Continue if texture analysis fails
+        # 9. SKIP complex texture analysis for CT compatibility
+        # CT scans can have different texture characteristics than X-rays
         
-        # 10. Check for photographic characteristics
-        # Photos often have smooth gradients and natural lighting patterns
-        # Calculate local standard deviation to detect smooth gradients typical of photos
-        from scipy.ndimage import uniform_filter
-        try:
-            local_mean = uniform_filter(img_array.astype(np.float32), size=20)
-            local_sq_mean = uniform_filter(img_array.astype(np.float32)**2, size=20)
-            local_std = np.sqrt(local_sq_mean - local_mean**2)
-            
-            # If too many regions with very smooth gradients, likely a photo
-            smooth_regions = np.sum(local_std < 3) / (h * w)
-            if smooth_regions > 0.6:
-                return False, "Image has too many smooth gradient regions (appears to be photo)"
-        except ImportError:
-            # Skip this check if scipy is not available
-            pass
+        # 10. RELAXED photographic characteristics check
+        # Skip smooth gradient check as CT scans can have legitimate smooth regions
         
-        # 11. Frequency domain analysis to detect natural vs medical patterns
+        # 11. MODIFIED frequency domain analysis
         try:
             f_transform = np.fft.fft2(img_array)
             f_shift = np.fft.fftshift(f_transform)
             magnitude_spectrum = np.log(np.abs(f_shift) + 1)
             
-            # Medical images typically have more structured frequency patterns
-            # Photos have more distributed frequency content
+            # More lenient frequency analysis for CT scans
             center_h, center_w = h//2, w//2
-            center_region = magnitude_spectrum[center_h-20:center_h+20, center_w-20:center_w+20]
+            center_region = magnitude_spectrum[center_h-30:center_h+30, center_w-30:center_w+30]
             edge_region = np.concatenate([
-                magnitude_spectrum[:20, :].flatten(),
-                magnitude_spectrum[-20:, :].flatten(),
-                magnitude_spectrum[:, :20].flatten(),
-                magnitude_spectrum[:, -20:].flatten()
+                magnitude_spectrum[:15, :].flatten(),
+                magnitude_spectrum[-15:, :].flatten(),
+                magnitude_spectrum[:, :15].flatten(),
+                magnitude_spectrum[:, -15:].flatten()
             ])
             
             center_energy = np.mean(center_region)
             edge_energy = np.mean(edge_region)
             
-            # Photos typically have more energy in higher frequencies (edges of spectrum)
-            if edge_energy > center_energy * 1.5:
+            # More lenient threshold for CT scans
+            if edge_energy > center_energy * 2.0:  # Increased from 1.5
                 return False, "Frequency characteristics suggest natural photo rather than medical scan"
         except:
             pass  # Continue if frequency analysis fails
         
-        # 12. Structure analysis
-        binary = cv2.adaptiveThreshold(
-            img_array, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
+        # 12. RELAXED structure analysis for CT scans
+        try:
+            binary = cv2.adaptiveThreshold(
+                img_array, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+            
+            structure_density = np.sum(binary > 0) / (h * w)
+            # More lenient bounds for CT scans
+            if structure_density < 0.05 or structure_density > 0.98:
+                return False, "Image appears to lack anatomical structures"
+        except:
+            pass  # Skip if adaptive threshold fails
         
-        structure_density = np.sum(binary > 0) / (h * w)
-        if structure_density < 0.1 or structure_density > 0.95:
-            return False, "Image appears to lack anatomical structures"
-        
-        # 13. Entropy check
+        # 13. MODIFIED entropy check for CT scans
         hist_norm = hist / np.sum(hist)
         entropy = -np.sum(hist_norm * np.log2(hist_norm + 1e-10))
         
-        if entropy < 3.0:
+        if entropy < 2.0:  # Reduced from 3.0 for high-contrast CT
             return False, "Image too simple (lacks medical complexity)"
         
-        if entropy > 8.0:
+        if entropy > 8.5:  # Slightly more lenient
             return False, "Image too noisy or complex"
         
-        # 14. Final gradient check
+        # 14. RELAXED gradient check for CT
         grad_magnitude = np.sqrt(
             cv2.Sobel(img_array, cv2.CV_64F, 1, 0, ksize=3)**2 + 
             cv2.Sobel(img_array, cv2.CV_64F, 0, 1, ksize=3)**2
         )
         avg_gradient = np.mean(grad_magnitude)
         
-        if avg_gradient < 2.0:
+        if avg_gradient < 1.5:  # Reduced from 2.0
             return False, "Image too smooth for medical scan"
         
-        # 15. Check for obvious non-medical content
+        # 15. RELAXED unique values check
         unique_values = len(np.unique(img_array))
-        if unique_values < 10:
+        if unique_values < 8:  # Reduced from 10 for high-contrast CT
             return False, "Image appears to be artificial or non-medical"
+        
+        # 16. ADDITIONAL CT-specific validation
+        # Check for reasonable contrast distribution in CT scans
+        # CT scans often have bimodal distributions (air/background vs tissue/bone)
+        hist_peaks = []
+        for i in range(10, 246):  # Avoid extreme values
+            if hist[i] > hist[i-1] and hist[i] > hist[i+1] and hist[i] > img_array.size * 0.01:
+                hist_peaks.append(i)
+        
+        # CT scans typically have at least some structure (peaks in histogram)
+        if len(hist_peaks) == 0 and np.max(hist[10:246]) < img_array.size * 0.05:
+            return False, "Image lacks characteristic medical intensity patterns"
         
         # If all checks pass
         return True, "Valid medical image"
@@ -330,7 +320,7 @@ def preprocess_covid(img: Image.Image):
         
         img = img.resize((w, h))
         
-        # Convert to numpy array and normalize EXACTLY like Streamlit
+        # Convert to numpy array and normalize
         img_array = np.array(img)
         img_array = img_array.astype("float32") / 255.0
         img_array = img_array.reshape(1, h, w, 1)
