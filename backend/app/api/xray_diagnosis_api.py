@@ -300,7 +300,7 @@ def validate_medical_image(img: Image.Image) -> tuple[bool, str]:
 # UTILITIES
 # ----------------------
 def preprocess_medical_scan_type(img: Image.Image):
-    """Preprocess image for medical scan type classification (X-ray vs CTI)"""
+    """Preprocess image for medical scan type classification (X-ray vs CT)"""
     try:
         h, w = med_scan_size
         im = img.convert('L').resize((w, h))
@@ -472,11 +472,11 @@ async def predict(file: UploadFile = File(...)):
             return JSONResponse(
                 status_code=400,
                 content={
-                    "error": f"Invalid medical image: {validation_message}. Please upload a valid X-ray or CTI scan."
+                    "error": f"Invalid medical image: {validation_message}. Please upload a valid X-ray or CT scan."
                 }
             )
 
-        # Step 1: Medical Scan Type Classification (X-ray vs CTI)
+        # Step 1: Medical Scan Type Classification (X-ray vs CT)
         try:
             x_scan_type = preprocess_medical_scan_type(img)
             scan_pred = med_scan_model.predict(x_scan_type)[0, 0].item()
@@ -485,7 +485,7 @@ async def predict(file: UploadFile = File(...)):
             if scan_pred >= med_scan_thresh:
                 scan_type, scan_conf = 'X-ray', scan_pred
             else:
-                scan_type, scan_conf = 'CTI', 1 - scan_pred
+                scan_type, scan_conf = 'CT', 1 - scan_pred
             
             # Check confidence threshold
             if scan_conf < 0.8:
@@ -498,7 +498,7 @@ async def predict(file: UploadFile = File(...)):
             raise HTTPException(500, f"Error in medical scan type classification: {str(e)}")
 
         # Step 2: Route based on scan type
-        if scan_type == 'CTI':
+        if scan_type == 'CT':
             try:
                 # Preprocess image for COVID-19 model - EXACT match to Streamlit
                 x_covid = preprocess_covid(img)
@@ -527,11 +527,11 @@ async def predict(file: UploadFile = File(...)):
                 # Generate Grad-CAM overlay
                 overlay, heat = generate_gradcam_overlay(img, x_covid, covid_model, covid_last_conv, 'covid-19')
                 
-                # Clean CTI output
+                # Clean CT output
                 output = {
                     "scan_type": scan_type,
                     "scan_type_confidence": round(scan_conf, 3),
-                    "anatomy": "CTI Scan",
+                    "anatomy": "CT Scan",
                     "anatomy_confidence": round(scan_conf, 3),
                     "disease": disease,
                     "disease_confidence": round(disease_conf, 3),

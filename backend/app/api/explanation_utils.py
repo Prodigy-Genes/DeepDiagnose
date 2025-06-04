@@ -71,13 +71,13 @@ def analyze_activation_patterns(
         },
         "osteoarthritis": {
             "strong": "I found clear signs of osteoarthritis with wear around your joint.",
-            "moderate": "I see moderate arthritis changes in your joint space.",
+            "moderate": "I see moderate osteoarthritis changes in your joint space.",
             "mild": "I notice early signs of osteoarthritis around your joint."
         },
         "covid-19": {
-            "strong": "I found clear signs of COVID-19 pneumonia with characteristic patterns in both lungs, showing the ground-glass appearance typical of this infection.",
-            "moderate": "I see moderate signs of COVID-19 pneumonia in your lungs, with some of the typical imaging features we associate with this viral infection.",
-            "mild": "I notice subtle changes in your lungs that may indicate early COVID-19 pneumonia, though these findings are mild and would benefit from clinical correlation."
+            "strong": "I found clear signs of COVID-19 with characteristic patterns in both lungs, showing the ground-glass appearance typical of this infection.",
+            "moderate": "I see moderate signs of COVID-19 in your lungs, with some of the typical imaging features we associate with this viral infection.",
+            "mild": "I notice subtle changes in your lungs that may indicate early COVID-19, though these findings are mild and would benefit from clinical correlation."
         },
     }
 
@@ -110,21 +110,21 @@ def generate_patient_explanation(
 
     # Handle normal cases
     if disease.lower() == "normal":
-        if "chest" in anatomy or "cti" in scan_type:
-            if "cti" in scan_type:
+        if "chest" in anatomy or "ct" in scan_type:
+            if "ct" in scan_type:
                 return (
-                    "I've reviewed your CT scan of the chest and it looks normal; "
-                    "I don't see any signs of COVID-19 pneumonia or other lung issues."
+                    "I've reviewed your CT scan and it looks normal; "
+                    "I don't see any signs of COVID-19."
                 )
             else:
                 return (
                     "I've reviewed your chest X-ray and it looks normal; "
-                    "I don't see any signs of pneumonia or other lung issues."
+                    "I don't see any signs of pneumonia."
                 )
         elif "joint" in anatomy:
             return (
                 "I've reviewed your joint X-ray and it looks normal; "
-                "I don't see any significant arthritis or joint damage."
+                "I don't see any significant osteoarthritis or joint damage."
             )
         else:
             return (
@@ -168,14 +168,14 @@ def get_scan_type_description(scan_type: str) -> str:
     Get a patient-friendly description of the scan type.
     
     Parameters:
-    - scan_type: Type of medical scan (e.g., "X-ray", "CTI")
+    - scan_type: Type of medical scan (e.g., "X-ray", "CT")
     
     Returns:
     - String with patient-friendly description
     """
     descriptions = {
         "x-ray": "X-ray",
-        "cti": "CT scan",
+        "ct": "CT scan",
         "ct": "CT scan",
         "chest-scan": "chest imaging",
         "joint-scan": "joint imaging"

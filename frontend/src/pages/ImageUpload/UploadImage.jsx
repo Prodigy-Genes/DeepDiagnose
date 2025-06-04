@@ -72,7 +72,7 @@ const UploadImage = () => {
             <div className="section-intro">
               <h2>X-Ray Image Analysis</h2>
               <p className="disclaimer">
-                <strong>Disclaimer:</strong> This tool can only predict <b>Pneumonia</b> and <b>Osteoarthritis</b> from x-ray images.
+                <strong>Disclaimer:</strong> This tool can only predict <b>Pneumonia</b>, <b>Covid-19</b> and <b>Osteoarthritis</b> from x-ray and CT medical scans.
               </p><br />
               <p>Upload your x-ray image to get AI-powered diagnosis assistance in seconds</p>
             </div>
