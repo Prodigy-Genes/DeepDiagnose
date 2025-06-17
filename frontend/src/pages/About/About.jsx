@@ -1,4 +1,3 @@
-// src/pages/About.jsx
 import React, { useState } from 'react';
 import Header from '../../components/about-page/header/a-header';
 import DevelopersInfo from '../../components/about-page/developers_info/developers_info'; // Import the DevelopersInfo component

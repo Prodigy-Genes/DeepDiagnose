@@ -1,4 +1,4 @@
-.a-header-container {
+.api-header-container {
     position: relative;
     width: 100vw;
     height: 60%;
@@ -12,7 +12,7 @@
 }
 
 /* Top row layout */
-.a-top-row {
+.api-top-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -23,7 +23,7 @@
 }
 
 /* Logo styles */
-.a-logo-container h2 {
+.api-logo-container h2 {
     font-family: 'Orbitron', sans-serif;
     font-size: 32px;
     font-weight: 600;
@@ -48,13 +48,13 @@
 }
 
 /* Menu links with active state and hover effect */
-.a-menu-container {
+.api-menu-container {
     display: flex;
     gap: 3rem;
     margin-right: 18rem;
 }
 
-.a-menu-container a {
+.api-menu-container a {
     position: relative;
     color: white;
     font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
@@ -65,7 +65,7 @@
     text-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
 }
 
-.a-menu-container a::after {
+.api-menu-container a::after {
     content: '';
     position: absolute;
     left: 0; 
@@ -76,44 +76,44 @@
     transition: width 0.3s ease-in-out;
 }
 
-.a-menu-container a:hover,
-.a-menu-container a.active {
+.api-menu-container a:hover,
+.api-menu-container a.active {
     color: rgb(0, 208, 255);
 }
 
-.a-menu-container a:hover::after,
-.a-menu-container a.active::after {
+.api-menu-container a:hover::after,
+.api-menu-container a.active::after {
     width: 50%;
 }
 
 /* Social icons */
-.a-social-container {
+.api-social-container {
     display: flex;
     gap: 1rem;
     margin-right: 7rem;
 }
 
-.a-social-container a i {
+.api-social-container a i {
     color: white;
     font-size: 1.2rem;
     transition: color 0.3s ease;
     text-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
 }
 
-.a-social-container a:hover .fa-facebook { color: #1877F2; }
-.a-social-container a:hover .fa-instagram { color: #E4405F; }
-.a-social-container a:hover .fa-twitter { color: #1DA1F2; }
-.a-social-container a:hover .fa-linkedin { color: #0077B5; }
+.api-social-container a:hover .fa-facebook { color: #1877F2; }
+.api-social-container a:hover .fa-instagram { color: #E4405F; }
+.api-social-container a:hover .fa-twitter { color: #1DA1F2; }
+.api-social-container a:hover .fa-linkedin { color: #0077B5; }
 
 /* Site title for About page */
-.a-site-title {
+.api-site-title {
     display: flex;
     flex-direction: column;
     align-items: center;
     z-index: 1;
 }
 
-.a-site-title h1 {
+.api-site-title h1 {
     margin: 0;
     font-family: 'Orbitron', sans-serif;
     font-size: 54px;
@@ -124,7 +124,7 @@
     position: relative;
 }
 
-.a-site-title h1::after {
+.api-site-title h1::after {
     content: '';
     position: absolute;
     bottom: -10px;
@@ -136,96 +136,33 @@
     border-radius: 3px;
 }
 
-/* Read About Us button */
-.a-cta-button-container {
-    margin-top: 3rem;
-    z-index: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
 
-.read-about-us {
-    padding: 0.8rem 2.5rem;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 16px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #ffffff;
-    background: linear-gradient(90deg, rgb(0, 208, 255) 0%, rgb(0, 136, 255) 100%);
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 25px rgba(0, 208, 255, 0.6);
-    position: relative;
-    overflow: hidden;
-}
-
-.read-about-us:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 0 35px rgba(0, 208, 255, 0.8);
-}
-
-.read-about-us:active {
-    transform: translateY(1px) scale(0.98);
-    box-shadow: 0 0 15px rgba(0, 208, 255, 0.7);
-}
-
-/* Button glow effect */
-.read-about-us::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(45deg);
-    transition: all 0.5s ease;
-    opacity: 0;
-}
-
-.read-about-us:hover::before {
-    opacity: 1;
-    animation: shine 1.5s infinite;
-}
-
-@keyframes shine {
-    0% {
-        left: -150%;
-    }
-    100% {
-        left: 100%;
-    }
-}
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
-    .a-menu-container {
+    .api-menu-container {
         margin-right: 10rem;
     }
-    .a-social-container {
+    .api-social-container {
         margin-right: 4rem;
     }
 }
 
 @media (max-width: 768px) {
-    .a-top-row {
+    .api-top-row {
         flex-direction: column;
         gap: 1.5rem;
     }
-    .a-logo-container h2 {
+    .api-logo-container h2 {
         margin-left: 0;
     }
-    .a-menu-container {
+    .api-menu-container {
         margin-right: 0;
     }
-    .a-social-container {
+    .api-social-container {
         margin-right: 0;
     }
-    .a-header-container {
+    .api-header-container {
         gap: 3rem;
     }
 }
