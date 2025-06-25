@@ -1,0 +1,6 @@
+{
+  "target_recall": 0.9,
+  "optimal_threshold": 0.5919996500015259,
+  "val_true_positive_rate": 0.9403973509933775,
+  "val_false_positive_rate": 0.006622516556291391
+}
