@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 tensorflow
 pillow
 scikit-learn
@@ -10,3 +10,5 @@ psycopg2-binary
 sqlalchemy
 python-dotenv
 alembic
+passlib[bcrypt]
+python-jose[cryptography]

@@ -5,6 +5,7 @@ from app.schemas.user import UserCreate, UserOut
 from app.services.auth_service import register_user, authenticate_user
 from app.core.security import create_access_token, decode_token
 from app.database import get_db
+from app.db.repository.user_repo import get_user_by_email
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")

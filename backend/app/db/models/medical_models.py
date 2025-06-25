@@ -9,7 +9,7 @@ class MedicalImage(Base):
     __tablename__ = "medical_images"
 
 
-    image_id:Mapped[uuid.UUID] = mapped_column(
+    image_id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
         default=uuid.uuid4
     )
@@ -21,11 +21,6 @@ class MedicalImage(Base):
     image_url: Mapped[str] = mapped_column(
         Text,
         nullable=False
-    )
-
-    thumbnail_url: Mapped[str] = mapped_column(
-        Text,
-        nullable=True
     )
 
     uploaded_at: Mapped[datetime] = mapped_column(
