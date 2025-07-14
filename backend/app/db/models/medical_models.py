@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import String, Text, Boolean, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-
+from user_models import User
 
 class MedicalImage(Base):
     __tablename__ = "medical_images"

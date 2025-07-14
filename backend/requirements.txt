@@ -12,3 +12,8 @@ python-dotenv
 alembic
 passlib[bcrypt]
 python-jose[cryptography]
+opencv-python
+scikit-image
+scipy
+streamlit
+pydantic-settings
