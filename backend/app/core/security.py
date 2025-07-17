@@ -3,11 +3,11 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = str(os.getenv("SECRET_KEY"))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context = CryptContext(schemes=["bcrypt"], depracated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

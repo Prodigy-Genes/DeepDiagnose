@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-from medical_models import MedicalImage, SystemLog
+#from .medical_models import MedicalImage, SystemLog # Intentionally removed to avoid circular import
 
 class User(Base):
     __tablename__ = "users"
@@ -32,7 +32,7 @@ class User(Base):
     )
     
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc))
+        default=lambda: datetime.utcnow())
     
     #Relationships
     images: Mapped[list["MedicalImage"]] = relationship(

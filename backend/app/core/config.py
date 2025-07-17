@@ -1,11 +1,22 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 class Settings(BaseSettings):
+    # Add the missing fields from your .env file
+    app_name: str
+    debug: bool
+    
+    # Database configuration
     DATABASE_URL: str 
+    
+    # Security configuration
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = 'HS256'
-    MODEL_CONFIG =  SettingsConfigDict(env_file=".env")
-
+    
+    # model configuration
+    model_config = ConfigDict(env_file='.env', env_file_encoding='utf-8')
+    
+    database_url_sync: str
 settings = Settings()
 

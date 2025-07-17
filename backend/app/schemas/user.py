@@ -1,21 +1,25 @@
 from pydantic import BaseModel, EmailStr
+from uuid import UUID
+from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
 
-
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-
 class UserOut(BaseModel):
-    user_id: str
+    user_id: UUID  # Changed from str to UUID
     email: EmailStr
     username: str
-
-
-    class Config:
-        orm_mode = True
+    created_at: datetime  
+    
+    model_config = {
+        "from_attributes": True,  # Replaces orm_mode for v2
+        "json_encoders": {
+            UUID: str  # Converts UUID to string in JSON
+        }
+    }
