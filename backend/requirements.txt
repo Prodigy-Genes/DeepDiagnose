@@ -17,3 +17,4 @@ scikit-image
 scipy
 streamlit
 pydantic-settings
+bcrypt
