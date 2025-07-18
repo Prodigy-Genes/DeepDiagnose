@@ -1,9 +1,12 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, ForeignKey
+from typing import TYPE_CHECKING
+from sqlalchemy import DateTime, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-from medical_models import MedicalImage, SystemLog
+
+if TYPE_CHECKING:
+    from .medical_models import MedicalImage, SystemLog
 
 class User(Base):
     __tablename__ = "users"
@@ -30,11 +33,10 @@ class User(Base):
         String(255),
         nullable=False
     )
-    
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc))
+    DateTime(timezone=True),
+    default=lambda: datetime.now(timezone.utc))
     
-    #Relationships
     images: Mapped[list["MedicalImage"]] = relationship(
         back_populates="user"
     )
@@ -75,7 +77,3 @@ class AuthToken(Base):
     user: Mapped["User"] = relationship(
         back_populates="auth_tokens"
     )
-
-
-
-                                                 

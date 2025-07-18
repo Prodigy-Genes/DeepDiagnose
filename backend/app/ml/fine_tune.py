@@ -10,7 +10,7 @@ Workflow:
 4. Create combined training tf.data.Dataset for fine-tuning.
 5. Fine-tune each model for a few epochs with validation.
 6. Save only if validation accuracy improves.
-"""frbg  
+"""
 
 import os
 import glob
@@ -19,8 +19,8 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 import tensorflow as tf
-from tensorflow.keras.applications.efficientnet import preprocess_input as preprocess_efficientnet
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.applications.efficientnet import preprocess_input as preprocess_efficientnet # type: ignore
+from tensorflow.keras.callbacks import ModelCheckpoint # type: ignore
 
 # Paths
 BASE_DIR       = Path(__file__).resolve().parent

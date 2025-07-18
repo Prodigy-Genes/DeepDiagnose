@@ -3,8 +3,8 @@ from sqlalchemy import select
 from app.db.models.user_models import User
 
 
-async def get_user_by_email(session: AsyncSession, email: str):
-    result = await session.execute(select(User).where(User.email == email))
+async def get_user_by_email(session: AsyncSession, username: str):
+    result = await session.execute(select(User).where(User.username == username))
     return result.scalar_one_or_none()
 
 async def  create_user(session: AsyncSession, user_data: dict):

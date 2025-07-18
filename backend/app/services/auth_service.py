@@ -8,6 +8,7 @@ async def register_user(session, user_data):
         raise HTTPException(status_code=400, detail="Email already registered")
     hashed_pw = hash_password(user_data.password)
     return await create_user(session, {
+        # "user_id":str(user_data.user_id),
         "email": user_data.email,
         "username": user_data.username,
         "password_hash": hashed_pw

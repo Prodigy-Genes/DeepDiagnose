@@ -1,13 +1,15 @@
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from sqlalchemy import String, Text, Boolean, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-from user_models import User
+
+if TYPE_CHECKING:
+    from .user_models import User
 
 class MedicalImage(Base):
     __tablename__ = "medical_images"
-
 
     image_id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -24,7 +26,7 @@ class MedicalImage(Base):
     )
 
     uploaded_at: Mapped[datetime] = mapped_column(
-        default=lambda : datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc)
     )
 
     processed: Mapped[bool] = mapped_column(
@@ -35,7 +37,6 @@ class MedicalImage(Base):
         String(20)
     )
 
-    #Relationships
     user: Mapped["User"] = relationship(
         back_populates="images"
     )
@@ -43,7 +44,45 @@ class MedicalImage(Base):
     report: Mapped["DiagnosisReport"] = relationship(
         back_populates="image",
         uselist=False
+)
+
+
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+
+    log_id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4
     )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.user_id"),
+        nullable=True
+    )
+    
+    action: Mapped[str] = mapped_column(
+        String(100)
+    )
+    
+    details: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    ip_address: Mapped[str] = mapped_column(
+        String(45),
+        nullable=True
+    )
+
+    timestamp: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship(
+        back_populates="logs"
+    )
+
 
 class DiagnosisReport(Base):
     __tablename__ = "diagnosis_reports"
@@ -74,7 +113,7 @@ class DiagnosisReport(Base):
     )
 
     generated_at: Mapped[datetime] = mapped_column(
-        default= lambda : datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc)
     )
 
     reviewed_by: Mapped[str] = mapped_column(
@@ -84,39 +123,4 @@ class DiagnosisReport(Base):
 
     image: Mapped["MedicalImage"] = relationship(
         back_populates="report"
-    )
-
-class SystemLog(Base):
-    __tablename__ = "system_logs"
-
-    log_id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True,
-        default=uuid.uuid4
-    )
-
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.user_id"),
-        nullable=True
-    )
-    
-    action: Mapped[str] = mapped_column(
-        String(100)
-    )
-    
-    details: Mapped[str] = mapped_column(
-        Text,
-        nullable=True
-    )
-
-    ip_address: Mapped[str] = mapped_column(
-        String(45),
-        nullable=True
-    )
-
-    timestamp: Mapped[datetime] = mapped_column(
-        default= lambda: datetime.now(timezone.utc)
-    )
-
-    user: Mapped["User"] = relationship(
-        back_populates="logs"
     )

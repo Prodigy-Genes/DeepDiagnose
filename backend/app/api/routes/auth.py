@@ -13,11 +13,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 @router.post("/signup", response_model=UserOut)
 async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
     new_user = await register_user(db, user)
-    return new_user
-
+    return {
+        "user_id": str(new_user.user_id),  # Convert UUID to string
+        "username": new_user.username,
+        "email": new_user.email
+        }
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db:AsyncSession = Depends(get_db)):
     user = await authenticate_user(db, form_data.username, form_data.password)
+    print(user)
+    print("User authenticated:", user.username)
+    print("Proceeding to create access token")
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 

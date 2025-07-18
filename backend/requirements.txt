@@ -15,5 +15,5 @@ python-jose[cryptography]
 opencv-python
 scikit-image
 scipy
-streamlit
 pydantic-settings
+pydantic[email]
