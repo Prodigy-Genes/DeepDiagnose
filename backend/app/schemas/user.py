@@ -23,3 +23,17 @@ class UserOut(BaseModel):
             UUID: str  # Converts UUID to string in JSON
         }
     }
+
+class UserMe(BaseModel):
+    """Schema for /auth/me endpoint response"""
+    user_id: UUID
+    email: EmailStr
+    username: str
+    created_at: datetime
+    
+    model_config = {
+        "from_attributes": True,  # Replaces orm_mode for v2
+        "json_encoders": {
+            UUID: str  # Converts UUID to string in JSON
+        }
+    }

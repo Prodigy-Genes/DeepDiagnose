@@ -1,4 +1,3 @@
-/* SignIn.css - Extends the same base styles as SignUp.css */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
 
@@ -13,6 +12,7 @@
   --shadow-color: rgba(0, 0, 0, 0.2);
   --error-color: #ff4757;
   --success-color: #2ed573;
+  --scan-color: rgba(0, 255, 136, 0.8);
 }
 
 /* Auth Modal Overlay */
@@ -59,6 +59,7 @@
   opacity: 0.3;
   z-index: -1;
   border-radius: inherit;
+  animation: gridPulse 4s ease-in-out infinite;
 }
 
 /* Header */
@@ -78,6 +79,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: titleGlow 3s ease-in-out infinite alternate;
 }
 
 .auth-subtitle {
@@ -85,6 +87,7 @@
   font-size: 0.95rem;
   margin: 0;
   line-height: 1.4;
+  animation: subtitleFlicker 2s ease-in-out infinite;
 }
 
 .auth-close {
@@ -108,6 +111,7 @@
 .auth-close:hover {
   background: var(--error-color);
   transform: scale(1.1);
+  animation: closeButtonPulse 0.3s ease-in-out;
 }
 
 /* Form Styles */
@@ -121,6 +125,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
 }
 
 .form-label {
@@ -131,14 +136,17 @@
   gap: 0.5rem;
   font-size: 0.9rem;
   margin-bottom: 0.2rem;
+  transition: all 0.3s ease;
 }
 
 .form-label i {
   color: var(--accent-blue);
   font-size: 0.85rem;
   width: 12px;
+  animation: iconPulse 2s ease-in-out infinite;
 }
 
+/* Enhanced Input Field */
 .form-input {
   width: 100%;
   padding: 0.8rem 1rem;
@@ -151,23 +159,128 @@
   font-family: 'Roboto', sans-serif;
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
 }
 
 .form-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* High-tech typing effect */
 .form-input:focus {
   outline: none;
   border-color: var(--accent-blue);
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 15px rgba(0, 208, 255, 0.2);
+  box-shadow: 
+    0 0 15px rgba(0, 208, 255, 0.2),
+    inset 0 0 20px rgba(0, 208, 255, 0.05);
   transform: translateY(-1px);
+  animation: inputScan 2s ease-in-out infinite;
+}
+
+/* Typing animation effect */
+.form-input.typing {
+  animation: typingGlow 0.5s ease-in-out;
+  position: relative;
+}
+
+.form-input.typing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(0, 255, 136, 0.3) 50%, 
+    transparent 100%);
+  animation: typingScan 0.8s ease-out;
+  pointer-events: none;
+}
+
+/* Password field container for reveal effect */
+.password-container {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 45px !important;
+  /* Hide browser's default password reveal button */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Hide browser's built-in password reveal button */
+.password-input::-webkit-credentials-auto-fill-button,
+.password-input::-webkit-inner-spin-button,
+.password-input::-webkit-outer-spin-button,
+.password-input::-ms-reveal,
+.password-input::-ms-clear {
+  display: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  margin: 0;
+  width: 0;
+  height: 0;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 10%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  transition: all 0.3s ease;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: var(--accent-blue);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Password reveal animation */
+.password-reveal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, 
+    rgba(0, 255, 136, 0.8) 0%,
+    rgba(0, 255, 136, 0.6) 30%,
+    rgba(0, 255, 136, 0.4) 60%,
+    transparent 0
+  );
+  border-radius: 20px;
+  animation: passwordReveal 1.2s ease-out forwards;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .form-input.error {
   border-color: var(--error-color);
   background: rgba(255, 71, 87, 0.05);
+  animation: errorShake 0.5s ease-in-out;
 }
 
 .error-message {
@@ -177,6 +290,7 @@
   align-items: center;
   gap: 0.3rem;
   margin-top: -0.2rem;
+  animation: errorFadeIn 0.3s ease-in-out;
 }
 
 /* Form Options - Specific to SignIn */
@@ -187,7 +301,7 @@
   margin: 0.5rem 0;
 }
 
-/* Custom Checkbox */
+/* Enhanced Checkbox */
 .checkbox-container {
   display: flex;
   align-items: center;
@@ -195,6 +309,11 @@
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.8);
   gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.checkbox-container:hover {
+  color: var(--accent-blue);
 }
 
 .checkbox-container input[type="checkbox"] {
@@ -214,6 +333,7 @@
 .checkbox-container input[type="checkbox"]:checked + .checkmark {
   background: var(--accent-blue);
   border-color: var(--accent-blue);
+  animation: checkboxActivate 0.4s ease-out;
 }
 
 .checkbox-container input[type="checkbox"]:checked + .checkmark::after {
@@ -226,6 +346,7 @@
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
+  animation: checkmarkDraw 0.3s ease-out 0.1s both;
 }
 
 .checkbox-text {
@@ -233,7 +354,7 @@
   user-select: none;
 }
 
-/* Forgot Password Button */
+/* Enhanced Forgot Password Button */
 .forgot-password {
   background: none;
   border: none;
@@ -241,13 +362,30 @@
   font-size: 0.85rem;
   cursor: pointer;
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
   padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.forgot-password::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--accent-blue-dark);
+  transition: width 0.3s ease;
+}
+
+.forgot-password:hover::before {
+  width: 100%;
 }
 
 .forgot-password:hover {
   color: var(--accent-blue-dark);
-  text-decoration: underline;
+  transform: translateY(-1px);
 }
 
 .forgot-password:disabled {
@@ -266,9 +404,10 @@
   align-items: center;
   gap: 0.5rem;
   text-align: center;
+  animation: errorPulse 0.5s ease-in-out;
 }
 
-/* Submit Button */
+/* Enhanced Submit Button */
 .auth-submit {
   background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
   color: white;
@@ -306,7 +445,10 @@
 
 .auth-submit:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 208, 255, 0.3);
+  box-shadow: 
+    0 10px 25px rgba(0, 208, 255, 0.3),
+    0 0 30px rgba(0, 208, 255, 0.2);
+  animation: buttonGlow 1s ease-in-out infinite alternate;
 }
 
 .auth-submit:active {
@@ -321,6 +463,11 @@
 
 .auth-submit.loading {
   pointer-events: none;
+  animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+.auth-submit.loading i {
+  animation: spin 1s linear infinite;
 }
 
 /* Footer */
@@ -350,15 +497,178 @@
   cursor: pointer;
   text-decoration: underline;
   font-size: 0.9rem;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
   padding: 0;
+  position: relative;
 }
 
 .auth-toggle:hover {
   color: var(--accent-blue-dark);
+  transform: scale(1.05);
+  text-shadow: 0 0 10px rgba(0, 208, 255, 0.5);
 }
 
-/* Animations */
+/* High-Tech Animations */
+@keyframes gridPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes titleGlow {
+  0% { 
+    filter: brightness(1);
+    text-shadow: 0 0 10px rgba(0, 208, 255, 0.3);
+  }
+  100% { 
+    filter: brightness(1.2);
+    text-shadow: 0 0 20px rgba(0, 208, 255, 0.6);
+  }
+}
+
+@keyframes subtitleFlicker {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+@keyframes iconPulse {
+  0%, 100% { 
+    color: var(--accent-blue);
+    filter: brightness(1);
+  }
+  50% { 
+    color: var(--accent-blue-dark);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes inputScan {
+  0%, 100% {
+    box-shadow: 
+      0 0 15px rgba(0, 208, 255, 0.2),
+      inset 0 0 20px rgba(0, 208, 255, 0.05);
+  }
+  50% {
+    box-shadow: 
+      0 0 25px rgba(0, 208, 255, 0.4),
+      inset 0 0 30px rgba(0, 208, 255, 0.1);
+  }
+}
+
+@keyframes typingGlow {
+  0% { 
+    box-shadow: 
+      0 0 15px rgba(0, 208, 255, 0.2),
+      inset 0 0 20px rgba(0, 208, 255, 0.05);
+  }
+  50% { 
+    box-shadow: 
+      0 0 30px rgba(0, 255, 136, 0.4),
+      inset 0 0 25px rgba(0, 255, 136, 0.1);
+  }
+  100% { 
+    box-shadow: 
+      0 0 15px rgba(0, 208, 255, 0.2),
+      inset 0 0 20px rgba(0, 208, 255, 0.05);
+  }
+}
+
+@keyframes typingScan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes passwordReveal {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes errorFadeIn {
+  0% { 
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes errorPulse {
+  0%, 100% { 
+    background: rgba(255, 71, 87, 0.1);
+    border-color: rgba(255, 71, 87, 0.3);
+  }
+  50% { 
+    background: rgba(255, 71, 87, 0.15);
+    border-color: rgba(255, 71, 87, 0.5);
+  }
+}
+
+@keyframes checkboxActivate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes checkmarkDraw {
+  0% { 
+    width: 0;
+    height: 0;
+  }
+  50% { 
+    width: 4px;
+    height: 0;
+  }
+  100% { 
+    width: 4px;
+    height: 8px;
+  }
+}
+
+@keyframes buttonGlow {
+  0% { 
+    box-shadow: 
+      0 10px 25px rgba(0, 208, 255, 0.3),
+      0 0 30px rgba(0, 208, 255, 0.2);
+  }
+  100% { 
+    box-shadow: 
+      0 10px 25px rgba(0, 208, 255, 0.5),
+      0 0 40px rgba(0, 208, 255, 0.4);
+  }
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes closeButtonPulse {
+  0% { transform: scale(1.1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1.1); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

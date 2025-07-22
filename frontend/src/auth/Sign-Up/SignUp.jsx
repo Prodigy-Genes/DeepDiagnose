@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SignUp.css';
 
 const SignUp = ({ onToggleAuth, onClose }) => {
@@ -10,13 +10,26 @@ const SignUp = ({ onToggleAuth, onClose }) => {
     });
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isRevealingPassword, setIsRevealingPassword] = useState(false);
+    const [isRevealingConfirmPassword, setIsRevealingConfirmPassword] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    
+    const usernameInputRef = useRef(null);
+    const emailInputRef = useRef(null);
+    const passwordInputRef = useRef(null);
+    const confirmPasswordInputRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
+    // Add typing animation effect
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+        
         // Clear error when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
@@ -24,6 +37,63 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                 [name]: ''
             }));
         }
+
+        // Add typing animation class
+        const inputElement = e.target;
+        inputElement.classList.add('typing');
+        
+        // Clear previous timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        
+        // Remove typing class after animation
+        typingTimeoutRef.current = setTimeout(() => {
+            inputElement.classList.remove('typing');
+        }, 800);
+    };
+
+    // Handle password visibility toggle with reveal animation
+    const togglePasswordVisibility = (field) => {
+        const isConfirmField = field === 'confirm';
+        const isCurrentlyRevealing = isConfirmField ? isRevealingConfirmPassword : isRevealingPassword;
+        
+        if (isCurrentlyRevealing) return; // Prevent multiple clicks during animation
+        
+        if (isConfirmField) {
+            setIsRevealingConfirmPassword(true);
+        } else {
+            setIsRevealingPassword(true);
+        }
+        
+        // Create and add the reveal overlay
+        const passwordContainer = isConfirmField 
+            ? confirmPasswordInputRef.current?.parentElement
+            : passwordInputRef.current?.parentElement;
+        const overlay = document.createElement('div');
+        overlay.className = 'password-reveal-overlay';
+        passwordContainer?.appendChild(overlay);
+        
+        // Toggle visibility after a short delay for better effect
+        setTimeout(() => {
+            if (isConfirmField) {
+                setShowConfirmPassword(prev => !prev);
+            } else {
+                setShowPassword(prev => !prev);
+            }
+        }, 300);
+        
+        // Remove overlay and reset state after animation
+        setTimeout(() => {
+            if (passwordContainer && overlay.parentElement) {
+                passwordContainer.removeChild(overlay);
+            }
+            if (isConfirmField) {
+                setIsRevealingConfirmPassword(false);
+            } else {
+                setIsRevealingPassword(false);
+            }
+        }, 1200);
     };
 
     const validateForm = () => {
@@ -33,6 +103,8 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             newErrors.username = 'Username is required';
         } else if (formData.username.length < 3) {
             newErrors.username = 'Username must be at least 3 characters';
+        } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+            newErrors.username = 'Username can only contain letters, numbers, and underscores';
         }
 
         if (!formData.email.trim()) {
@@ -43,8 +115,10 @@ const SignUp = ({ onToggleAuth, onClose }) => {
 
         if (!formData.password) {
             newErrors.password = 'Password is required';
-        } else if (formData.password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
+        } else if (formData.password.length < 8) {
+            newErrors.password = 'Password must be at least 8 characters';
+        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+            newErrors.password = 'Password must contain uppercase, lowercase, and number';
         }
 
         if (!formData.confirmPassword) {
@@ -53,10 +127,20 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             newErrors.confirmPassword = 'Passwords do not match';
         }
 
+        if (!agreedToTerms) {
+            newErrors.terms = 'You must agree to the terms and conditions';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
+    const redirectToUpload = () => {
+        const uploadUrl = `${window.location.origin}/upload`;
+        window.open(uploadUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -82,7 +166,15 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             if (response.ok) {
                 const result = await response.json();
                 console.log('Signup successful:', result);
-                // Handle successful signup (e.g., redirect to dashboard or auto-login)
+                
+                // In a real implementation, you would use localStorage/sessionStorage here
+                console.log('User data would be stored:', result);
+                localStorage.setItem('authToken', result.access_token);
+
+                // Redirect to upload page
+                redirectToUpload();
+                
+                // Handle successful signup (e.g., redirect to verification page or auto-login)
                 onClose && onClose();
             } else {
                 const errorData = await response.json();
@@ -95,6 +187,20 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             setIsLoading(false);
         }
     };
+
+    const handleTermsClick = () => {
+        // Implement terms and conditions modal/page
+        console.log('Terms and conditions clicked');
+    };
+
+    // Cleanup timeout on component unmount
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className="auth-overlay">
@@ -116,16 +222,23 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                             Username
                         </label>
                         <input
+                            ref={usernameInputRef}
                             type="text"
                             id="username"
                             name="username"
                             value={formData.username}
                             onChange={handleInputChange}
                             className={`form-input ${errors.username ? 'error' : ''}`}
-                            placeholder="Choose a username"
+                            placeholder="Choose a unique username"
                             disabled={isLoading}
+                            autoComplete="username"
                         />
-                        {errors.username && <span className="error-message">{errors.username}</span>}
+                        {errors.username && (
+                            <span className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.username}
+                            </span>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -134,16 +247,23 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                             Email Address
                         </label>
                         <input
+                            ref={emailInputRef}
                             type="email"
                             id="email"
                             name="email"
                             value={formData.email}
                             onChange={handleInputChange}
                             className={`form-input ${errors.email ? 'error' : ''}`}
-                            placeholder="Enter your email"
+                            placeholder="Enter your email address"
                             disabled={isLoading}
+                            autoComplete="email"
                         />
-                        {errors.email && <span className="error-message">{errors.email}</span>}
+                        {errors.email && (
+                            <span className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.email}
+                            </span>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -151,35 +271,104 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                             <i className="fas fa-lock"></i>
                             Password
                         </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            className={`form-input ${errors.password ? 'error' : ''}`}
-                            placeholder="Create a password"
-                            disabled={isLoading}
-                        />
-                        {errors.password && <span className="error-message">{errors.password}</span>}
+                        <div className="password-container">
+                            <input
+                                ref={passwordInputRef}
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                className={`form-input password-input ${errors.password ? 'error' : ''}`}
+                                placeholder="Create a secure password"
+                                disabled={isLoading}
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => togglePasswordVisibility('password')}
+                                disabled={isLoading || isRevealingPassword}
+                                title={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                            </button>
+                        </div>
+                        {errors.password && (
+                            <span className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.password}
+                            </span>
+                        )}
+                        <div className="password-strength">
+                            <small>Must contain uppercase, lowercase, and number (min 8 chars)</small>
+                        </div>
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="confirmPassword" className="form-label">
-                            <i className="fas fa-lock"></i>
+                            <i className="fas fa-shield-alt"></i>
                             Confirm Password
                         </label>
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange}
-                            className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-                            placeholder="Confirm your password"
-                            disabled={isLoading}
-                        />
-                        {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
+                        <div className="password-container">
+                            <input
+                                ref={confirmPasswordInputRef}
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleInputChange}
+                                className={`form-input password-input ${errors.confirmPassword ? 'error' : ''}`}
+                                placeholder="Confirm your password"
+                                disabled={isLoading}
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => togglePasswordVisibility('confirm')}
+                                disabled={isLoading || isRevealingConfirmPassword}
+                                title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            >
+                                <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                            </button>
+                        </div>
+                        {errors.confirmPassword && (
+                            <span className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.confirmPassword}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="form-options">
+
+                        <label className="checkbox-container">
+                            <input
+                                type="checkbox"
+                                checked={agreedToTerms}
+                                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                disabled={isLoading}
+                            />
+                            <span className="checkmark"></span>
+                            <span className="checkbox-text">
+                                I agree to the{' '}
+                                <button
+                                    type="button"
+                                    className="terms-link"
+                                    onClick={handleTermsClick}
+                                    disabled={isLoading}
+                                >
+                                    Terms & Conditions
+                                </button>
+                            </span>
+                        </label>
+                        {errors.terms && (
+                            <span className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.terms}
+                            </span>
+                        )}
                     </div>
 
                     {errors.submit && (

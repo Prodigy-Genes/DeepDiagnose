@@ -26,4 +26,7 @@ FROM users
 GROUP BY username
 HAVING COUNT(*) > 1;
 
+-- Display all columns and rows from the users table:
+SELECT * FROM users;
+
 

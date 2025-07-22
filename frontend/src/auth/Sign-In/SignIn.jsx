@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SignIn.css';
 
 const SignIn = ({ onToggleAuth, onClose }) => {
@@ -9,13 +9,21 @@ const SignIn = ({ onToggleAuth, onClose }) => {
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [isRevealingPassword, setIsRevealingPassword] = useState(false);
+    
+    const emailInputRef = useRef(null);
+    const passwordInputRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
+    // Add typing animation effect
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+        
         // Clear error when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
@@ -23,6 +31,46 @@ const SignIn = ({ onToggleAuth, onClose }) => {
                 [name]: ''
             }));
         }
+
+        // Add typing animation class
+        const inputElement = e.target;
+        inputElement.classList.add('typing');
+        
+        // Clear previous timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        
+        // Remove typing class after animation
+        typingTimeoutRef.current = setTimeout(() => {
+            inputElement.classList.remove('typing');
+        }, 800);
+    };
+
+    // Handle password visibility toggle with reveal animation
+    const togglePasswordVisibility = () => {
+        if (isRevealingPassword) return; // Prevent multiple clicks during animation
+        
+        setIsRevealingPassword(true);
+        
+        // Create and add the reveal overlay
+        const passwordContainer = passwordInputRef.current?.parentElement;
+        const overlay = document.createElement('div');
+        overlay.className = 'password-reveal-overlay';
+        passwordContainer?.appendChild(overlay);
+        
+        // Toggle visibility after a short delay for better effect
+        setTimeout(() => {
+            setShowPassword(prev => !prev);
+        }, 300);
+        
+        // Remove overlay and reset state after animation
+        setTimeout(() => {
+            if (passwordContainer && overlay.parentElement) {
+                passwordContainer.removeChild(overlay);
+            }
+            setIsRevealingPassword(false);
+        }, 1200);
     };
 
     const validateForm = () => {
@@ -42,6 +90,13 @@ const SignIn = ({ onToggleAuth, onClose }) => {
         return Object.keys(newErrors).length === 0;
     };
 
+    const redirectToUpload = () => {
+        const uploadUrl = `${window.location.origin}/upload`;
+        window.open(uploadUrl, '_blank', 'noopener,noreferrer');
+    };
+
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -58,7 +113,7 @@ const SignIn = ({ onToggleAuth, onClose }) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: formData.email,
+                    username: formData.email,
                     password: formData.password
                 })
             });
@@ -67,18 +122,36 @@ const SignIn = ({ onToggleAuth, onClose }) => {
                 const result = await response.json();
                 console.log('Signin successful:', result);
                 
-                // Store token if remember me is checked
-                if (rememberMe && result.access_token) {
-                    localStorage.setItem('auth_token', result.access_token);
-                } else if (result.access_token) {
-                    sessionStorage.setItem('auth_token', result.access_token);
+                // In a real implementation, you would use localStorage/sessionStorage here
+                console.log('Token would be stored:', result.access_token);
+                // Store token based on rememberMe preference
+                if (rememberMe) {
+                    localStorage.setItem('authToken', result.access_token);
+                } else {
+                    sessionStorage.setItem('authToken', result.access_token);
                 }
+
+                // Redirect to upload page
+                redirectToUpload();
                 
                 // Handle successful signin (e.g., redirect to dashboard)
                 onClose && onClose();
             } else {
                 const errorData = await response.json();
-                setErrors({ submit: errorData.detail || 'Invalid credentials. Please try again.' });
+                
+                // Handle array of validation errors
+                if (Array.isArray(errorData.detail)) {
+                    const errorMessages = errorData.detail.map(err => err.msg).join('. ');
+                    setErrors({ submit: errorMessages });
+                } 
+                // Handle single error message
+                else if (errorData.detail) {
+                    setErrors({ submit: errorData.detail });
+                } 
+                // Default error
+                else {
+                    setErrors({ submit: 'Invalid credentials. Please try again.' });
+                }
             }
         } catch (error) {
             console.error('Signin error:', error);
@@ -92,6 +165,15 @@ const SignIn = ({ onToggleAuth, onClose }) => {
         // Implement forgot password functionality
         console.log('Forgot password clicked');
     };
+
+    // Cleanup timeout on component unmount
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className="auth-overlay">
@@ -113,6 +195,7 @@ const SignIn = ({ onToggleAuth, onClose }) => {
                             Email Address
                         </label>
                         <input
+                            ref={emailInputRef}
                             type="email"
                             id="email"
                             name="email"
@@ -130,16 +213,28 @@ const SignIn = ({ onToggleAuth, onClose }) => {
                             <i className="fas fa-lock"></i>
                             Password
                         </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            className={`form-input ${errors.password ? 'error' : ''}`}
-                            placeholder="Enter your password"
-                            disabled={isLoading}
-                        />
+                        <div className="password-container">
+                            <input
+                                ref={passwordInputRef}
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                className={`form-input password-input ${errors.password ? 'error' : ''}`}
+                                placeholder="Enter your password"
+                                disabled={isLoading}
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={togglePasswordVisibility}
+                                disabled={isLoading || isRevealingPassword}
+                                title={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                            </button>
+                        </div>
                         {errors.password && <span className="error-message">{errors.password}</span>}
                     </div>
 

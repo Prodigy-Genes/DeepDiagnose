@@ -2,24 +2,30 @@ import React, { useState, useEffect } from "react";
 import ImageUpload from "../../components/ImageUpload/ImageUpload";
 import PredictionResult from "../../components/PredictionResult/PredictionResult";
 import "./UploadImage.css";
+import UserStatusIndicator from "../../auth/UserStatusIndicator/userStatus_Indicator";
+import SignIn from "../../auth/Sign-In/SignIn";
 
 const UploadImage = () => {
-  // State for prediction result
   const [result, setResult] = useState(null);
-  // State for animation control
   const [showAnimation, setShowAnimation] = useState(true);
+  const [showSignIn, setShowSignIn] = useState(false);
 
-  // Callback to receive prediction data
+  const handleShowSignIn = () => {
+    setShowSignIn(true);
+  };
+  
+  const handleCloseSignIn = () => {
+    setShowSignIn(false);
+  };
+
   const handleResult = (data) => {
     setResult(data);
   };
 
-  // Handle when upload begins
   const handleUploadStart = () => {
     setResult(null);
   };
 
-  // Hide intro animation after it plays
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowAnimation(false);
@@ -29,8 +35,15 @@ const UploadImage = () => {
   }, []);
 
   return (
-    // Main upload page component 
     <div className="upload-page">
+      {/* SignIn Modal - Moved to root level */}
+      {showSignIn && (
+        <SignIn 
+          onToggleAuth={() => {/* handle toggle to signup */}}
+          onClose={handleCloseSignIn}
+        />
+      )}
+      
       {/* Intro animation */}
       {showAnimation && (
         <div className="scanner-animation">
@@ -62,6 +75,9 @@ const UploadImage = () => {
               <span>HIPAA Compliant</span>
             </div>
           </div>
+
+          {/* User status indicator */}
+          <UserStatusIndicator onShowSignIn={handleShowSignIn} />
         </div>
       </header>
       
@@ -109,7 +125,6 @@ const UploadImage = () => {
             <div className="tech-desc">On standard test datasets</div>
           </div>
         </div>
-        
       </div>
       
       <footer className="upload-footer">
