@@ -13,6 +13,8 @@
   --error-color: #ff4757;
   --success-color: #2ed573;
   --scan-color: rgba(0, 255, 136, 0.8);
+  --matrix-green: #00ff41;
+  --matrix-dark-green: #008f11;
 }
 
 /* Auth Modal Overlay */
@@ -203,6 +205,7 @@
 /* Password field container for reveal effect */
 .password-container {
   position: relative;
+  overflow: hidden;
 }
 
 .password-input {
@@ -211,6 +214,8 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
 }
 
 /* Hide browser's built-in password reveal button */
@@ -231,7 +236,7 @@
 .password-toggle {
   position: absolute;
   right: 12px;
-  top: 10%;
+  top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
@@ -249,8 +254,9 @@
 }
 
 .password-toggle:hover {
-  color: var(--accent-blue);
+  color: var(--matrix-green);
   transform: translateY(-50%) scale(1.1);
+  text-shadow: 0 0 10px var(--matrix-green);
 }
 
 .password-toggle:disabled {
@@ -258,23 +264,59 @@
   cursor: not-allowed;
 }
 
-/* Password reveal animation */
+/* Matrix-style password reveal animation */
 .password-reveal-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to top, 
-    rgba(0, 255, 136, 0.8) 0%,
-    rgba(0, 255, 136, 0.6) 30%,
-    rgba(0, 255, 136, 0.4) 60%,
-    transparent 0
-  );
-  border-radius: 20px;
-  animation: passwordReveal 1.2s ease-out forwards;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 10px;
+  animation: matrixGlitchReveal 1.2s ease-out forwards;
   pointer-events: none;
   z-index: 5;
+  overflow: hidden;
+}
+
+.password-reveal-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--matrix-green) 2px,
+    var(--matrix-green) 4px
+  );
+  opacity: 0.3;
+  animation: matrixScanlines 0.1s linear infinite;
+}
+
+.password-reveal-overlay::after {
+  content: '01010101 10101010 11110000 00001111 10011001 01100110 11001100 00110011';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  color: var(--matrix-green);
+  font-family: 'Courier New', monospace;
+  font-size: 8px;
+  line-height: 10px;
+  word-wrap: break-word;
+  overflow: hidden;
+  opacity: 0.7;
+  animation: matrixText 1.2s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  text-shadow: 0 0 5px var(--matrix-green);
 }
 
 .form-input.error {
@@ -508,7 +550,109 @@
   text-shadow: 0 0 10px rgba(0, 208, 255, 0.5);
 }
 
-/* High-Tech Animations */
+/* Matrix Glitch Animations */
+@keyframes matrixGlitchReveal {
+  0% {
+    transform: translateY(0) scaleY(1);
+    opacity: 1;
+  }
+  10% {
+    transform: translateY(0) scaleY(1) skewX(5deg);
+    opacity: 1;
+  }
+  15% {
+    transform: translateY(-2px) scaleY(0.95) skewX(-3deg);
+    opacity: 0.9;
+    filter: hue-rotate(180deg) contrast(1.5);
+  }
+  25% {
+    transform: translateY(1px) scaleY(1.05) skewX(2deg);
+    opacity: 0.8;
+    filter: hue-rotate(90deg) contrast(1.2);
+  }
+  35% {
+    transform: translateY(-1px) scaleY(0.98) skewX(-1deg);
+    opacity: 0.7;
+    filter: hue-rotate(270deg) contrast(1.8);
+  }
+  45% {
+    transform: translateY(0) scaleY(1.02) skewX(1deg);
+    opacity: 0.6;
+    filter: hue-rotate(45deg) contrast(1.3);
+  }
+  55% {
+    transform: translateY(0) scaleY(0.99) skewX(0deg);
+    opacity: 0.5;
+    filter: hue-rotate(315deg) contrast(1.6);
+  }
+  65% {
+    transform: translateY(0) scaleY(1.01) skewX(-0.5deg);
+    opacity: 0.4;
+    filter: hue-rotate(135deg) contrast(1.4);
+  }
+  75% {
+    transform: translateY(0) scaleY(0.97) skewX(0.5deg);
+    opacity: 0.3;
+    filter: hue-rotate(225deg) contrast(1.7);
+  }
+  85% {
+    transform: translateY(0) scaleY(1) skewX(0deg);
+    opacity: 0.2;
+    filter: none;
+  }
+  95% {
+    transform: translateY(-100%) scaleY(0.1);
+    opacity: 0.1;
+  }
+  100% {
+    transform: translateY(-100%) scaleY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes matrixScanlines {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes matrixText {
+  0% {
+    opacity: 0;
+    transform: scale(1.2) rotate(1deg);
+    filter: blur(2px);
+  }
+  20% {
+    opacity: 0.8;
+    transform: scale(1) rotate(-0.5deg);
+    filter: blur(1px);
+  }
+  40% {
+    opacity: 0.6;
+    transform: scale(1.1) rotate(0.5deg);
+    filter: blur(0.5px);
+  }
+  60% {
+    opacity: 0.4;
+    transform: scale(0.9) rotate(-0.2deg);
+    filter: blur(0px);
+  }
+  80% {
+    opacity: 0.2;
+    transform: scale(1.05) rotate(0.1deg);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) rotate(0deg);
+    filter: blur(1px);
+  }
+}
+
+/* Existing animations remain the same */
 @keyframes gridPulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.5; }
@@ -575,20 +719,6 @@
 @keyframes typingScan {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
-}
-
-@keyframes passwordReveal {
-  0% {
-    transform: translateY(100%);
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
 }
 
 @keyframes errorShake {

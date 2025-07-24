@@ -11,12 +11,15 @@ const UploadImage = () => {
   const [showSignIn, setShowSignIn] = useState(false);
 
   const handleShowSignIn = () => {
+    console.log('🔓 Opening SignIn modal from UploadImage');
     setShowSignIn(true);
   };
   
   const handleCloseSignIn = () => {
+    console.log('🔒 Closing SignIn modal');
     setShowSignIn(false);
   };
+
 
   const handleResult = (data) => {
     setResult(data);
@@ -32,6 +35,20 @@ const UploadImage = () => {
     }, 3000);
     
     return () => clearTimeout(timer);
+  }, []);
+
+  // Listen for custom login events as a backup
+  useEffect(() => {
+    const handleLoginRequest = (event) => {
+      console.log('🔓 Login requested via custom event:', event.detail);
+      handleShowSignIn();
+    };
+
+    document.addEventListener('requestLogin', handleLoginRequest);
+    
+    return () => {
+      document.removeEventListener('requestLogin', handleLoginRequest);
+    };
   }, []);
 
   return (
@@ -77,7 +94,7 @@ const UploadImage = () => {
           </div>
 
           {/* User status indicator */}
-          <UserStatusIndicator onShowSignIn={handleShowSignIn} />
+          <UserStatusIndicator onLoginClick={handleShowSignIn} />
         </div>
       </header>
       

@@ -26,18 +26,25 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    username = payload["sub"]
+    # The subject could be either username or email - check both
+    identifier = payload["sub"]
     
-    # Look up user by username (since we use username as subject)
-    user = await get_user_by_username(db, username)
+    # Try username first, then email
+    user = await get_user_by_username(db, identifier)
     if not user:
-        # Fallback: try email lookup in case of mixed token subjects
-        user = await get_user_by_email(db, username)
+        user = await get_user_by_email(db, identifier)
+    
+    if not user:
+        # If we have user_id in the token, try that as last resort
+        if "user_id" in payload:
+            from app.db.repository.user_repo import get_user_by_id
+            user = await get_user_by_id(db, payload["user_id"])
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     return user
@@ -73,15 +80,31 @@ async def login(
             detail="Invalid credentials"
         )
     
-    # Create token with username as subject
+    # Create token with email as subject (more reliable since it's unique)
+    # Include both username and user_id for flexibility
     access_token = create_access_token(
-        data={"sub": user.username, "user_id": str(user.user_id)}
+        data={
+            "sub": user.email,  # Use email as primary identifier
+            "username": user.username,
+            "user_id": str(user.user_id)
+        }
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    # Return both token and user data for frontend
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": {
+            "user_id": str(user.user_id),
+            "username": user.username,
+            "email": user.email,
+            "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') else None
+        }
+    }
 
 @router.get("/me", response_model=UserMe)
 async def get_current_user_info(
-    current_user: UserOut = Depends(get_current_user)  # Now properly defined
+    current_user: UserOut = Depends(get_current_user)
 ):
     """
     Get current user information

@@ -1,4 +1,7 @@
 .env
+
+# Ignore Gemma files
+gemma/
 # Python virtual environments
 .venv/
 venv/

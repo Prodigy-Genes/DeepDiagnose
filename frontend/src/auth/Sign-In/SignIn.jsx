@@ -91,75 +91,77 @@ const SignIn = ({ onToggleAuth, onClose }) => {
     };
 
     const redirectToUpload = () => {
-        const uploadUrl = `${window.location.origin}/upload`;
-        window.open(uploadUrl, '_blank', 'noopener,noreferrer');
+        // Instead of opening new tab, navigate in same window
+        window.location.href = '/upload';
     };
-
-
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!validateForm()) {
-            return;
-        }
+    e.preventDefault();
+    
+    if (!validateForm()) {
+        return;
+    }
 
-        setIsLoading(true);
-        
-        try {
-            const response = await fetch('http://localhost:8000/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    username: formData.email,
-                    password: formData.password
-                })
-            });
+    setIsLoading(true);
+    
+    try {
+        const response = await fetch('http://localhost:8000/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: formData.email,  // Backend expects 'username' field
+                password: formData.password
+            })
+        });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Signin successful:', result);
-                
-                // In a real implementation, you would use localStorage/sessionStorage here
-                console.log('Token would be stored:', result.access_token);
-                // Store token based on rememberMe preference
-                if (rememberMe) {
-                    localStorage.setItem('authToken', result.access_token);
-                } else {
-                    sessionStorage.setItem('authToken', result.access_token);
-                }
-
-                // Redirect to upload page
-                redirectToUpload();
-                
-                // Handle successful signin (e.g., redirect to dashboard)
-                onClose && onClose();
-            } else {
-                const errorData = await response.json();
-                
-                // Handle array of validation errors
-                if (Array.isArray(errorData.detail)) {
-                    const errorMessages = errorData.detail.map(err => err.msg).join('. ');
-                    setErrors({ submit: errorMessages });
-                } 
-                // Handle single error message
-                else if (errorData.detail) {
-                    setErrors({ submit: errorData.detail });
-                } 
-                // Default error
-                else {
-                    setErrors({ submit: 'Invalid credentials. Please try again.' });
-                }
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Signin successful:', result);
+            
+            // Store token based on rememberMe preference
+            const storage = rememberMe ? localStorage : sessionStorage;
+            storage.setItem('authToken', result.access_token);
+            
+            // Store user data (now included in login response)
+            if (result.user) {
+                storage.setItem('userData', JSON.stringify(result.user));
+                console.log('User data stored:', result.user);
             }
-        } catch (error) {
-            console.error('Signin error:', error);
-            setErrors({ submit: 'Network error. Please check your connection and try again.' });
-        } finally {
-            setIsLoading(false);
+
+            // Give a moment for storage to complete, then redirect
+            setTimeout(() => {
+                redirectToUpload();
+            }, 100);
+            
+            // Close modal if provided
+            onClose && onClose();
+            
+        } else {
+            const errorData = await response.json();
+            
+            // Handle array of validation errors
+            if (Array.isArray(errorData.detail)) {
+                const errorMessages = errorData.detail.map(err => err.msg).join('. ');
+                setErrors({ submit: errorMessages });
+            } 
+            // Handle single error message
+            else if (errorData.detail) {
+                setErrors({ submit: errorData.detail });
+            } 
+            // Default error
+            else {
+                setErrors({ submit: 'Invalid credentials. Please try again.' });
+            }
         }
-    };
+    } catch (error) {
+        console.error('Signin error:', error);
+        setErrors({ submit: 'Network error. Please check your connection and try again.' });
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const handleForgotPassword = () => {
         // Implement forgot password functionality
