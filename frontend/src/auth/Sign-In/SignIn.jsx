@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './SignIn.css';
+import ForgotPassword from '../ForgotPassword/ForgotPassword';
 
 const SignIn = ({ onToggleAuth, onClose }) => {
     const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ const SignIn = ({ onToggleAuth, onClose }) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [isRevealingPassword, setIsRevealingPassword] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false)
     
     const emailInputRef = useRef(null);
     const passwordInputRef = useRef(null);
@@ -166,6 +168,13 @@ const SignIn = ({ onToggleAuth, onClose }) => {
     const handleForgotPassword = () => {
         // Implement forgot password functionality
         console.log('Forgot password clicked');
+        setShowForgotPassword(true);
+    };
+
+    const handleBackToSignIn = () => {
+        setShowForgotPassword(false);
+        // Clear any existing errors when going back
+        setErrors({});
     };
 
     // Cleanup timeout on component unmount
@@ -176,6 +185,16 @@ const SignIn = ({ onToggleAuth, onClose }) => {
             }
         };
     }, []);
+
+     // Render forgot password component if requested
+    if (showForgotPassword) {
+        return (
+            <ForgotPassword 
+                onBackToSignIn={handleBackToSignIn}
+                onClose={onClose}
+            />
+        );
+    }
 
     return (
         <div className="auth-overlay">

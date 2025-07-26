@@ -8,25 +8,21 @@ SELECT
 FROM information_schema.columns
 WHERE table_name = 'users';
 
--- View sample data from the users table:
-SELECT 
-  user_id::text AS uuid_string,  -- Convert UUID to readable string
-  username,
-  email,
-  created_at AT TIME ZONE 'UTC' AS created_utc,
-  LENGTH(password_hash) AS hash_length  -- Verify BCrypt hash format
-FROM users
-LIMIT 10;
-
--- Check for username/email uniqueness:
-SELECT 
-  username, 
-  COUNT(*) AS duplicates
-FROM users
-GROUP BY username
-HAVING COUNT(*) > 1;
-
--- Display all columns and rows from the users table:
+-- Query to retrieve all user data
 SELECT * FROM users;
+SELECT * FROM reset_codes;
+-- Query to retrieve all reset codes with their status
 
-
+SELECT 
+    email,
+    code,
+    expires_at,
+    used,
+    created_at,
+    CASE 
+        WHEN expires_at < NOW() THEN 'EXPIRED' 
+        WHEN used = true THEN 'USED'
+        ELSE 'ACTIVE'
+    END AS status
+FROM reset_codes
+ORDER BY created_at DESC;
