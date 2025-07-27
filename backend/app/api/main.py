@@ -13,6 +13,17 @@ from tensorflow.keras.applications.efficientnet import preprocess_input # type: 
 import cv2
 from scipy import ndimage
 from skimage import filters, measure, morphology
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
+from api.routes.auth import get_current_user
+from db.models.user_models import User
+from services.medical_service import MedicalPredictionService
+from db.repository.medical_repo import log_system_action
+import uuid
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 
 
 # Grad-CAM utilities
@@ -456,19 +467,52 @@ def convert_numpy_types(obj):
 # PREDICTION ENDPOINT
 # ----------------------
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    request: Request = None
+):
+    """
+    Enhanced prediction endpoint that stores results in database
+    Requires user authentication
+    """
     try:
+        # Initialize service
+        medical_service = MedicalPredictionService(db)
+        
+        # Get request metadata for logging
+        ip_address = request.client.host if request else None
+        user_agent = request.headers.get("user-agent") if request else None
+        
+        # Create initial medical image record
+        medical_image = await medical_service.create_medical_image_record(
+            user_id=current_user.user_id,
+            original_filename=file.filename,
+            image_url=f"temp/{uuid.uuid4()}_{file.filename}"  # Adjust based on your storage
+        )
         
         # Load & validate image
         try:
             data = await file.read()
             img = Image.open(BytesIO(data)).convert('RGB')
         except Exception as e:
+            await log_system_action(
+                db, current_user.user_id, "prediction", 
+                f"Invalid image file: {str(e)}", str(medical_image.image_id), 
+                "medical_image", "error", ip_address, user_agent
+            )
             raise HTTPException(400, f"Invalid image file: {str(e)}")
 
         # RIGOROUS MEDICAL IMAGE VALIDATION
         is_valid, validation_message = validate_medical_image(img)
         if not is_valid:
+            await log_system_action(
+                db, current_user.user_id, "prediction", 
+                f"Invalid medical image: {validation_message}", 
+                str(medical_image.image_id), "medical_image", "error", 
+                ip_address, user_agent
+            )
             return JSONResponse(
                 status_code=400,
                 content={
@@ -476,139 +520,160 @@ async def predict(file: UploadFile = File(...)):
                 }
             )
 
-        # Step 1: Medical Scan Type Classification (X-ray vs CT)
+        # Run prediction in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            prediction_result = await loop.run_in_executor(
+                executor, 
+                run_medical_prediction, 
+                img
+            )
+
+        # Store prediction results in database
         try:
-            x_scan_type = preprocess_medical_scan_type(img)
-            scan_pred = med_scan_model.predict(x_scan_type)[0, 0].item()
+            stored_image = await medical_service.store_prediction_results(
+                image_id=medical_image.image_id,
+                prediction_results=prediction_result,
+                overlay_image_base64=prediction_result.get("overlay_image")
+            )
             
-            # Determine scan type based on threshold
-            if scan_pred >= med_scan_thresh:
-                scan_type, scan_conf = 'X-ray', scan_pred
-            else:
-                scan_type, scan_conf = 'CT', 1 - scan_pred
+            # Log successful prediction
+            await log_system_action(
+                db, current_user.user_id, "prediction", 
+                f"Successfully processed {prediction_result.get('scan_type', 'unknown')} scan with {prediction_result.get('disease', 'unknown')} prediction", 
+                str(medical_image.image_id), "medical_image", "success", 
+                ip_address, user_agent
+            )
             
-            # Check confidence threshold
-            if scan_conf < 0.8:
-                return JSONResponse(
-                    status_code=400, 
-                    content={"error": "Unable to determine scan type with sufficient confidence. Please upload a clearer medical image."}
-                )
-                
+            # Return results with database IDs
+            response_data = convert_numpy_types(prediction_result)
+            response_data["image_id"] = str(stored_image.image_id)
+            response_data["processed_at"] = stored_image.processed_at.isoformat()
+            
+            return response_data
+            
         except Exception as e:
-            raise HTTPException(500, f"Error in medical scan type classification: {str(e)}")
+            await log_system_action(
+                db, current_user.user_id, "prediction", 
+                f"Error storing prediction results: {str(e)}", 
+                str(medical_image.image_id), "medical_image", "error", 
+                ip_address, user_agent
+            )
+            raise HTTPException(500, f"Error storing prediction results: {str(e)}")
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        if 'medical_image' in locals():
+            await log_system_action(
+                db, current_user.user_id, "prediction", 
+                f"Unexpected error: {str(e)}", str(medical_image.image_id), 
+                "medical_image", "error", ip_address, user_agent
+            )
+        raise HTTPException(500, f"Unexpected error during prediction: {str(e)}")
+
+
+def run_medical_prediction(img: Image.Image) -> dict:
+    """
+    Run the medical prediction pipeline - extracted from your original code
+    This runs in a separate thread to avoid blocking the async event loop
+    """
+    try:
+        # Step 1: Medical Scan Type Classification (X-ray vs CT)
+        x_scan_type = preprocess_medical_scan_type(img)
+        scan_pred = med_scan_model.predict(x_scan_type)[0, 0].item()
+        
+        # Determine scan type based on threshold
+        if scan_pred >= med_scan_thresh:
+            scan_type, scan_conf = 'X-ray', scan_pred
+        else:
+            scan_type, scan_conf = 'CT', 1 - scan_pred
+        
+        # Check confidence threshold
+        if scan_conf < 0.8:
+            raise HTTPException(400, "Unable to determine scan type with sufficient confidence. Please upload a clearer medical image.")
 
         # Step 2: Route based on scan type
         if scan_type == 'CT':
-            try:
-                # Preprocess image for COVID-19 model - EXACT match to Streamlit
-                x_covid = preprocess_covid(img)
-                
-                # Use EXACT Streamlit prediction logic
-                covid_result = make_enhanced_prediction(
-                    covid_model, 
-                    x_covid, 
-                    covid_thresh, 
-                    COVID_CONFIDENCE_THRESHOLD, 
-                    NORMAL_CONFIDENCE_THRESHOLD
-                )
-                
-                # Handle uncertain predictions the same way as Streamlit
-                if covid_result['final_prediction'] == "Uncertain - Consult Specialist":
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "error": f"Inconclusive result - specialist consultation required. COVID probability: {covid_result['covid_confidence']:.1%} (needs ≥90% for confident COVID diagnosis), Normal probability: {covid_result['normal_confidence']:.1%} (needs ≥80% for confident normal diagnosis). Please consult a healthcare professional."
-                        }
-                    )
-                
-                disease = covid_result['final_prediction']
-                disease_conf = covid_result['confidence']
-                
-                # Generate Grad-CAM overlay
-                overlay, heat = generate_gradcam_overlay(img, x_covid, covid_model, covid_last_conv, 'covid-19')
-                
-                # Clean CT output
-                output = {
-                    "scan_type": scan_type,
-                    "scan_type_confidence": round(scan_conf, 3),
-                    "anatomy": "CT Scan",
-                    "anatomy_confidence": round(scan_conf, 3),
-                    "disease": disease,
-                    "disease_confidence": round(disease_conf, 3),
-                }
-                
-            except Exception as e:
-                raise HTTPException(500, f"Error in COVID-19 classification: {str(e)}")
-                
+            # Preprocess image for COVID-19 model
+            x_covid = preprocess_covid(img)
+            
+            # Use EXACT Streamlit prediction logic
+            covid_result = make_enhanced_prediction(
+                covid_model, 
+                x_covid, 
+                covid_thresh, 
+                COVID_CONFIDENCE_THRESHOLD, 
+                NORMAL_CONFIDENCE_THRESHOLD
+            )
+            
+            # Handle uncertain predictions
+            if covid_result['final_prediction'] == "Uncertain - Consult Specialist":
+                raise HTTPException(400, f"Inconclusive result - specialist consultation required. COVID probability: {covid_result['covid_confidence']:.1%} (needs ≥90% for confident COVID diagnosis), Normal probability: {covid_result['normal_confidence']:.1%} (needs ≥80% for confident normal diagnosis). Please consult a healthcare professional.")
+            
+            disease = covid_result['final_prediction']
+            disease_conf = covid_result['confidence']
+            
+            # Generate Grad-CAM overlay
+            overlay, heat = generate_gradcam_overlay(img, x_covid, covid_model, covid_last_conv, 'covid-19')
+            
+            output = {
+                "scan_type": scan_type,
+                "scan_type_confidence": round(scan_conf, 3),
+                "anatomy": "CT Scan",
+                "anatomy_confidence": round(scan_conf, 3),
+                "disease": disease,
+                "disease_confidence": round(disease_conf, 3),
+            }
+            
         else:  # X-ray
             # Route to anatomy classification first
-            try:
-                x_anat = preprocess_anatomy(img)
-                anat_pred = anat_model.predict(x_anat)[0, 0].item()
-                
-                if anat_pred >= anat_thresh:
-                    anatomy, anat_conf = 'Joint-scan', anat_pred
-                else:
-                    anatomy, anat_conf = 'Chest-scan', 1 - anat_pred
-                
-                # Check confidence threshold
-                if anat_conf < 0.8:
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Unable to classify X-ray anatomy with sufficient confidence. Please upload a clearer X-ray image."}
-                    )
-                    
-            except Exception as e:
-                raise HTTPException(500, f"Error in anatomy classification: {str(e)}")
+            x_anat = preprocess_anatomy(img)
+            anat_pred = anat_model.predict(x_anat)[0, 0].item()
+            
+            if anat_pred >= anat_thresh:
+                anatomy, anat_conf = 'Joint-scan', anat_pred
+            else:
+                anatomy, anat_conf = 'Chest-scan', 1 - anat_pred
+            
+            # Check confidence threshold
+            if anat_conf < 0.8:
+                raise HTTPException(400, "Unable to classify X-ray anatomy with sufficient confidence. Please upload a clearer X-ray image.")
             
             # Route to appropriate disease classification
             if anatomy == 'Joint-scan':
                 # Route to Osteoarthritis detection
-                try:
-                    x_osteo = preprocess_osteo(img)
-                    osteo_pred = osteo_model.predict(x_osteo)[0, 0].item()
-                    
-                    if osteo_pred >= anat_thresh:  # Using anatomy threshold for osteo
-                        disease, disease_conf = 'Osteoarthritis', osteo_pred
-                    else:
-                        disease, disease_conf = 'Normal', 1 - osteo_pred
-                    
-                    # Check confidence threshold
-                    if disease_conf < 0.8:
-                        return JSONResponse(
-                            status_code=400,
-                            content={"error": "Unable to classify osteoarthritis with sufficient confidence. Please consult a medical professional."}
-                        )
-                    
-                    # Generate Grad-CAM overlay (Note: osteo model might not have conv layers for Grad-CAM)
-                    overlay, heat = generate_gradcam_overlay(img, x_osteo, osteo_model, None, 'osteoarthritis')
-                    
-                except Exception as e:
-                    raise HTTPException(500, f"Error in osteoarthritis classification: {str(e)}")
-                    
+                x_osteo = preprocess_osteo(img)
+                osteo_pred = osteo_model.predict(x_osteo)[0, 0].item()
+                
+                if osteo_pred >= anat_thresh:  # Using anatomy threshold for osteo
+                    disease, disease_conf = 'Osteoarthritis', osteo_pred
+                else:
+                    disease, disease_conf = 'Normal', 1 - osteo_pred
+                
+                # Check confidence threshold
+                if disease_conf < 0.8:
+                    raise HTTPException(400, "Unable to classify osteoarthritis with sufficient confidence. Please consult a medical professional.")
+                
+                # Generate Grad-CAM overlay
+                overlay, heat = generate_gradcam_overlay(img, x_osteo, osteo_model, None, 'osteoarthritis')
+                
             else:  # Chest-scan
                 # Route to Pneumonia detection
-                try:
-                    x_pneu = preprocess_pneumonia(img)
-                    pneu_pred = pneu_model.predict(x_pneu)[0, 0].item()
-                    
-                    if pneu_pred >= pneu_thresh:
-                        disease, disease_conf = 'Pneumonia', pneu_pred
-                    else:
-                        disease, disease_conf = 'Normal', 1 - pneu_pred
-                    
-                    # Check confidence threshold
-                    if disease_conf < 0.8:
-                        return JSONResponse(
-                            status_code=400,
-                            content={"error": "Unable to classify pneumonia with sufficient confidence. Please consult a medical professional."}
-                        )
-                    
-                    # Generate Grad-CAM overlay
-                    overlay, heat = generate_gradcam_overlay(img, x_pneu, pneu_model, pneu_last_conv, 'pneumonia')
-                    
-                except Exception as e:
-                    raise HTTPException(500, f"Error in pneumonia classification: {str(e)}")
+                x_pneu = preprocess_pneumonia(img)
+                pneu_pred = pneu_model.predict(x_pneu)[0, 0].item()
+                
+                if pneu_pred >= pneu_thresh:
+                    disease, disease_conf = 'Pneumonia', pneu_pred
+                else:
+                    disease, disease_conf = 'Normal', 1 - pneu_pred
+                
+                # Check confidence threshold
+                if disease_conf < 0.8:
+                    raise HTTPException(400, "Unable to classify pneumonia with sufficient confidence. Please consult a medical professional.")
+                
+                # Generate Grad-CAM overlay
+                overlay, heat = generate_gradcam_overlay(img, x_pneu, pneu_model, pneu_last_conv, 'pneumonia')
             
             output = {
                 "scan_type": scan_type,
@@ -640,12 +705,146 @@ async def predict(file: UploadFile = File(...)):
             print(f"Warning: Could not generate explanation: {e}")
             output['explanation'] = "Analysis completed. Please consult with a healthcare professional for detailed interpretation."
 
-        return convert_numpy_types(output)
+        return output
         
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
     except Exception as e:
-        raise HTTPException(500, f"Unexpected error during prediction: {str(e)}")
+        raise e
+
+
+# NEW ENDPOINTS FOR MEDICAL HISTORY
+
+@app.get("/medical-images")
+async def get_user_medical_images(
+    limit: int = 50,
+    offset: int = 0,
+    processed_only: bool = False,
+    disease_filter: str = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get user's medical images with optional filtering"""
+    
+    from app.db.repository.medical_repo import get_user_medical_images
+    
+    images = await get_user_medical_images(
+        db, 
+        current_user.user_id, 
+        limit, 
+        offset, 
+        processed_only, 
+        disease_filter
+    )
+    
+    return {
+        "images": [
+            {
+                "image_id": str(img.image_id),
+                "original_filename": img.original_filename,
+                "uploaded_at": img.uploaded_at.isoformat(),
+                "processed": img.processed,
+                "scan_type": img.scan_type,
+                "anatomy": img.anatomy,
+                "disease": img.disease,
+                "disease_confidence": img.disease_confidence,
+                "processed_at": img.processed_at.isoformat() if img.processed_at else None
+            }
+            for img in images
+        ],
+        "total": len(images),
+        "limit": limit,
+        "offset": offset
+    }
+
+
+@app.get("/medical-images/{image_id}")
+async def get_medical_image_details(
+    image_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get detailed information about a specific medical image"""
+    
+    from app.db.repository.medical_repo import get_medical_image_with_report
+    
+    try:
+        image_uuid = uuid.UUID(image_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid image ID format")
+    
+    image = await get_medical_image_with_report(db, image_uuid, current_user.user_id)
+    
+    if not image:
+        raise HTTPException(404, "Medical image not found")
+    
+    result = {
+        "image_id": str(image.image_id),
+        "original_filename": image.original_filename,
+        "uploaded_at": image.uploaded_at.isoformat(),
+        "processed": image.processed,
+        "scan_type": image.scan_type,
+        "scan_type_confidence": image.scan_type_confidence,
+        "anatomy": image.anatomy,
+        "anatomy_confidence": image.anatomy_confidence,
+        "disease": image.disease,
+        "disease_confidence": image.disease_confidence,
+        "explanation": image.explanation,
+        "overlay_image_url": image.overlay_image_url,
+        "prediction_results": image.prediction_results,
+        "processed_at": image.processed_at.isoformat() if image.processed_at else None,
+        "processing_error": image.processing_error
+    }
+    
+    # Include diagnosis report if available
+    if hasattr(image, 'report') and image.report:
+        result["diagnosis_report"] = {
+            "report_id": str(image.report.report_id),
+            "diagnosis_summary": image.report.diagnosis_summary,
+            "findings": image.report.findings,
+            "overall_confidence": image.report.overall_confidence,
+            "confidence_breakdown": image.report.confidence_breakdown,
+            "recommendations": image.report.recommendations,
+            "generated_at": image.report.generated_at.isoformat(),
+            "reviewed": image.report.reviewed,
+            "reviewed_by": image.report.reviewed_by
+        }
+    
+    return result
+
+
+@app.get("/medical-statistics")
+async def get_medical_statistics(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get medical image statistics for the current user"""
+    
+    from app.db.repository.medical_repo import get_user_medical_statistics
+    
+    stats = await get_user_medical_statistics(db, current_user.user_id)
+    return stats
+
+
+@app.delete("/medical-images/{image_id}")
+async def delete_medical_image(
+    image_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a medical image and its associated data"""
+    
+    from app.db.repository.medical_repo import delete_medical_image as delete_image_repo
+    
+    try:
+        image_uuid = uuid.UUID(image_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid image ID format")
+    
+    deleted = await delete_image_repo(db, image_uuid, current_user.user_id)
+    
+    if not deleted:
+        raise HTTPException(404, "Medical image not found")
+    
+    return {"message": "Medical image deleted successfully"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

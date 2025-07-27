@@ -17,6 +17,7 @@ import asyncio
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # New Pydantic models for forgot password
 class ForgotPasswordRequest(BaseModel):

@@ -1,13 +1,11 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, Boolean, Float, ForeignKey
+from sqlalchemy import String, Text, Boolean, Float, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-# from .user_models import User # Intentionally removed to avoid circular import
 
 class MedicalImage(Base):
     __tablename__ = "medical_images"
-
 
     image_id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -18,34 +16,102 @@ class MedicalImage(Base):
         ForeignKey("users.user_id")
     )
 
+    # Original image information
+    original_filename: Mapped[str] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    
     image_url: Mapped[str] = mapped_column(
         Text,
         nullable=False
     )
 
     uploaded_at: Mapped[datetime] = mapped_column(
-        default=lambda : datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc)
     )
 
     processed: Mapped[bool] = mapped_column(
         default=False
     )
 
-    modality: Mapped[str] = mapped_column(
-        String(20)
+    # Scan type information from prediction
+    scan_type: Mapped[str] = mapped_column(
+        String(50),  # 'X-ray' or 'CT'
+        nullable=True
+    )
+    
+    scan_type_confidence: Mapped[float] = mapped_column(
+        Float,
+        nullable=True
     )
 
-    #Relationships
+    # Anatomy classification
+    anatomy: Mapped[str] = mapped_column(
+        String(100),  # 'Chest-scan', 'Joint-scan', 'CT Scan'
+        nullable=True
+    )
+    
+    anatomy_confidence: Mapped[float] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    # Disease prediction
+    disease: Mapped[str] = mapped_column(
+        String(100),  # 'Pneumonia', 'COVID-19', 'Osteoarthritis', 'Normal'
+        nullable=True
+    )
+    
+    disease_confidence: Mapped[float] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    # Overlay/heatmap image
+    overlay_image_url: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # Patient explanation
+    explanation: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # Store full prediction results as JSON for reference
+    prediction_results: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=True
+    )
+
+    # Processing metadata
+    processed_at: Mapped[datetime] = mapped_column(
+        nullable=True
+    )
+    
+    processing_error: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # Relationships
     user: Mapped["User"] = relationship(
         back_populates="images"
     )
 
+    # Optional: Keep diagnosis report relationship if you want detailed reports
     report: Mapped["DiagnosisReport"] = relationship(
         back_populates="image",
-        uselist=False
+        uselist=False,
+        cascade="all, delete-orphan"
     )
 
 class DiagnosisReport(Base):
+    """
+    Optional detailed report - can store additional analysis
+    """
     __tablename__ = "diagnosis_reports"
 
     report_id: Mapped[uuid.UUID] = mapped_column(
@@ -54,34 +120,57 @@ class DiagnosisReport(Base):
     )
 
     image_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("medical_images.image_id")
+        ForeignKey("medical_images.image_id", ondelete="CASCADE")
     )
 
-    diagnosis_result: Mapped[str] = mapped_column(
+    # Summary of diagnosis
+    diagnosis_summary: Mapped[str] = mapped_column(
         Text
     )
 
-    confidence_score: Mapped[float] = mapped_column(
+    # Key findings
+    findings: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # Overall confidence
+    overall_confidence: Mapped[float] = mapped_column(
         Float
     )
 
-    findings: Mapped[str] = mapped_column(
-        Text
+    # Detailed confidence breakdown
+    confidence_breakdown: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=True
     )
 
-    heatmap_url: Mapped[str] = mapped_column(
-        Text
+    # Recommendations
+    recommendations: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
     )
 
     generated_at: Mapped[datetime] = mapped_column(
-        default= lambda : datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc)
     )
 
+    # Optional: Medical professional review
+    reviewed: Mapped[bool] = mapped_column(
+        default=False
+    )
+    
     reviewed_by: Mapped[str] = mapped_column(
         String(100),
         nullable=True
     )
+    
+    review_notes: Mapped[str] = mapped_column(
+        Text,
+        nullable=True
+    )
 
+    # Relationship
     image: Mapped["MedicalImage"] = relationship(
         back_populates="report"
     )
@@ -99,24 +188,50 @@ class SystemLog(Base):
         nullable=True
     )
     
+    # Action performed
     action: Mapped[str] = mapped_column(
-        String(100)
+        String(100)  # 'image_upload', 'prediction', 'login', etc.
     )
     
+    # Additional details
     details: Mapped[str] = mapped_column(
         Text,
         nullable=True
     )
 
+    # Request metadata
     ip_address: Mapped[str] = mapped_column(
         String(45),
         nullable=True
     )
-
-    timestamp: Mapped[datetime] = mapped_column(
-        default= lambda: datetime.now(timezone.utc)
+    
+    user_agent: Mapped[str] = mapped_column(
+        String(500),
+        nullable=True
     )
 
+    # Related resource (e.g., image_id for predictions)
+    resource_id: Mapped[str] = mapped_column(
+        String(100),
+        nullable=True
+    )
+    
+    resource_type: Mapped[str] = mapped_column(
+        String(50),  # 'medical_image', 'user', etc.
+        nullable=True
+    )
+
+    timestamp: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    # Status/result of the action
+    status: Mapped[str] = mapped_column(
+        String(20),  # 'success', 'error', 'warning'
+        default='success'
+    )
+
+    # Relationship
     user: Mapped["User"] = relationship(
         back_populates="logs"
     )
