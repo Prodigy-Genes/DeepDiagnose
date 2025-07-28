@@ -1,5 +1,7 @@
+import httpx
 import uvicorn  # type: ignore
-from fastapi import FastAPI, File, UploadFile, HTTPException # type: ignore
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Body, status # type: ignore
+from uuid import UUID
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from fastapi.responses import JSONResponse # type: ignore
 import numpy as np
@@ -15,26 +17,153 @@ from scipy import ndimage
 from skimage import filters, measure, morphology
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
-from api.routes.auth import get_current_user
-from db.models.user_models import User
-from services.medical_service import MedicalPredictionService
-from db.repository.medical_repo import log_system_action
 import uuid
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import sys
+import os
+
+# Add the parent directories to Python path
+current_dir = Path(__file__).resolve().parent
+app_dir = current_dir.parent
+backend_dir = app_dir.parent
+sys.path.insert(0, str(app_dir))
+sys.path.insert(0, str(backend_dir))
+from fastapi.security import OAuth2PasswordBearer
+from app.schemas.user import UserOut
+from app.services.medical_service import MedicalPredictionService
+from app.db.repository.medical_repo import log_system_action
+from pydantic import BaseModel
+from typing import Optional, List
 
 
+# Now import your modules
+try:
+    from database import get_db
+    from api.routes.auth import get_current_user
+    from db.models.user_models import User
+    from services.medical_service import MedicalPredictionService
+    from db.repository.medical_repo import log_system_action
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Alternative import paths
+    try:
+        from app.database import get_db
+        from app.api.routes.auth import get_current_user
+        from app.db.models.user_models import User
+        from app.services.medical_service import MedicalPredictionService
+        from app.db.repository.medical_repo import log_system_action
+    except ImportError as e2:
+        print(f"Alternative import also failed: {e2}")
+        # Create mock dependencies for development
+        def get_db():
+            return None
+        def get_current_user():
+            return None
+        class User:
+            def __init__(self):
+                self.user_id = "test_user"
+        class MedicalPredictionService:
+            def __init__(self, db):
+                pass
+            async def create_medical_image_record(self, **kwargs):
+                from types import SimpleNamespace
+                return SimpleNamespace(image_id=uuid.uuid4())
+            async def store_prediction_results(self, **kwargs):
+                from types import SimpleNamespace
+                return SimpleNamespace(image_id=uuid.uuid4(), processed_at=__import__('datetime').datetime.now())
+        async def log_system_action(*args, **kwargs):
+            pass
 
 # Grad-CAM utilities
-from ml.grad_cam_utils import (
-    make_gradcam_heatmap,
-    create_contoured_spot_heatmap,
-    overlay_heatmap
-)
+try:
+    from ml.grad_cam_utils import (
+        make_gradcam_heatmap,
+        create_contoured_spot_heatmap,
+        overlay_heatmap
+    )
+except ImportError:
+    print("Warning: Grad-CAM utilities not found, creating mock functions")
+    def make_gradcam_heatmap(x, model, last_conv):
+        return np.random.random((224, 224))
+    def create_contoured_spot_heatmap(img, heat, **kwargs):
+        return img
+    def overlay_heatmap(img, heat, **kwargs):
+        return img
 
 # Import explanation utilities
-from api.explanation_utils import generate_patient_explanation
+try:
+    from api.explanation_utils import generate_patient_explanation
+except ImportError:
+    print("Warning: Explanation utils not found, creating mock function")
+    def generate_patient_explanation(**kwargs):
+        return "Analysis completed. Please consult with a healthcare professional for detailed interpretation."
+    
+# Configuration for auth server
+AUTH_SERVER_URL = os.getenv("AUTH_SERVER_URL", "http://localhost:8000")
+
+# Pydantic models for user data
+class UserOut(BaseModel):
+    user_id: str
+    username: str
+    email: str
+
+# OAuth2 scheme for extracting tokens
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{AUTH_SERVER_URL}/auth/login")
+
+# Remote auth validation function
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserOut:
+    """
+    Validate token with the auth server and get current user
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{AUTH_SERVER_URL}/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10.0
+            )
+            
+            if response.status_code == 200:
+                user_data = response.json()
+                return UserOut(
+                    user_id=user_data["user_id"],
+                    username=user_data["username"],
+                    email=user_data["email"]
+                )
+            elif response.status_code == 401:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication failed",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+                
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable"
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Cannot connect to authentication service: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )
+
+
+
 # ----------------------
 # PATH CONFIGURATION
 # ----------------------
@@ -110,6 +239,25 @@ except Exception as e:
 # FASTAPI APP SETUP
 # ----------------------
 app = FastAPI()
+
+from app.api.routes.auth import router as auth_router
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+
+
+
+# ----------------------
+# DEBUG ENDPOINT (for token inspection)
+# ----------------------
+@app.get("/debug-token")
+async def debug_token(token: str = Depends(oauth2_scheme)):
+    """
+    Echo back the token FastAPI extracted, or 401 if none provided.
+    """
+    return {"received_token": token}
+
+# ----------------------
+# FASTAPI APP MIDDLEWARE
+# ----------------------
 app.add_middleware(
     # CORS, to allow requests from the frontend 
     CORSMiddleware,
@@ -469,108 +617,200 @@ def convert_numpy_types(obj):
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    request: Request = None
+    current_user: UserOut = Depends(get_current_user),
+    db = Depends(get_db),
+    request: Request = None,
+):
+    """Main prediction endpoint with JWT authentication"""
+    
+    # Validate file type
+    if file.content_type not in ("image/jpeg", "image/png", "image/jpg", "image/dicom"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type. JPEG, PNG, JPG, or DICOM only.",
+        )
+
+    # Initialize service and get request info
+    service = MedicalPredictionService(db)
+    ip = request.client.host if request else None
+    ua = request.headers.get("user-agent") if request else None
+
+    # Log successful authentication
+    await log_system_action(
+        db, current_user.user_id, "authentication",
+        "User authenticated for prediction", None, "user", "success", ip, ua
+    )
+
+    # Create image record
+    record = await service.create_medical_image_record(
+        user_id=current_user.user_id,
+        original_filename=file.filename,
+        image_url=f"temp/{uuid.uuid4()}_{file.filename}"
+    )
+
+    # Load and validate image
+    try:
+        data = await file.read()
+        img = Image.open(BytesIO(data)).convert('RGB')
+    except Exception as e:
+        await log_system_action(
+            db, current_user.user_id, "prediction",
+            f"Invalid image file: {e}", str(record.image_id), "medical_image", "error", ip, ua
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image file format"
+        )
+
+    # Validate medical image
+    valid, msg = validate_medical_image(img)
+    if not valid:
+        await log_system_action(
+            db, current_user.user_id, "prediction",
+            f"Invalid medical image: {msg}", str(record.image_id), "medical_image", "error", ip, ua
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+
+    # Run prediction in thread pool
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        result = await loop.run_in_executor(pool, run_medical_prediction, img)
+
+    # Store results
+    stored = await service.store_prediction_results(
+        image_id=record.image_id,
+        prediction_results=result,
+        overlay_image_base64=result.get("overlay_image")
+    )
+    
+    await log_system_action(
+        db, current_user.user_id, "prediction",
+        "Prediction completed successfully", str(record.image_id), "medical_image", "success", ip, ua
+    )
+
+    # Build response
+    output = convert_numpy_types(result)
+    output.update({
+        "image_id": str(stored.image_id),
+        "processed_at": stored.processed_at.isoformat(),
+        "user_info": {
+            "user_id": current_user.user_id,
+            "username": current_user.username,
+            "email": current_user.email,
+        },
+        "status": "success",
+        "message": "Image processed successfully",
+    })
+    
+    return output
+
+# Helper endpoint to get user_id after login (for frontend integration)
+@app.post("/auth/get-user-id")
+async def get_user_id_by_credentials(
+    credentials: dict = Body(...),
+    db: AsyncSession = Depends(get_db)
 ):
     """
-    Enhanced prediction endpoint that stores results in database
-    Requires user authentication
+    Get user_id by providing login credentials
+    Useful for clients that need user_id for the predict endpoint
     """
     try:
-        # Initialize service
-        medical_service = MedicalPredictionService(db)
+        identifier = credentials.get("username") or credentials.get("email")
+        password = credentials.get("password")
         
-        # Get request metadata for logging
-        ip_address = request.client.host if request else None
-        user_agent = request.headers.get("user-agent") if request else None
-        
-        # Create initial medical image record
-        medical_image = await medical_service.create_medical_image_record(
-            user_id=current_user.user_id,
-            original_filename=file.filename,
-            image_url=f"temp/{uuid.uuid4()}_{file.filename}"  # Adjust based on your storage
-        )
-        
-        # Load & validate image
-        try:
-            data = await file.read()
-            img = Image.open(BytesIO(data)).convert('RGB')
-        except Exception as e:
-            await log_system_action(
-                db, current_user.user_id, "prediction", 
-                f"Invalid image file: {str(e)}", str(medical_image.image_id), 
-                "medical_image", "error", ip_address, user_agent
-            )
-            raise HTTPException(400, f"Invalid image file: {str(e)}")
-
-        # RIGOROUS MEDICAL IMAGE VALIDATION
-        is_valid, validation_message = validate_medical_image(img)
-        if not is_valid:
-            await log_system_action(
-                db, current_user.user_id, "prediction", 
-                f"Invalid medical image: {validation_message}", 
-                str(medical_image.image_id), "medical_image", "error", 
-                ip_address, user_agent
-            )
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": f"Invalid medical image: {validation_message}. Please upload a valid X-ray or CT scan."
+        if not identifier or not password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": "Missing credentials",
+                    "message": "Both username/email and password are required",
+                    "action_required": "Please provide valid login credentials"
                 }
             )
-
-        # Run prediction in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            prediction_result = await loop.run_in_executor(
-                executor, 
-                run_medical_prediction, 
-                img
+        
+        # Import the authenticate_user function from your auth service
+        from app.services.auth_service import authenticate_user
+        user = await authenticate_user(db, identifier, password)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "error": "Invalid credentials",
+                    "message": "Username/email or password is incorrect",
+                    "action_required": "Please check your credentials or register if you don't have an account",
+                    "register_endpoint": "/auth/signup"
+                }
             )
-
-        # Store prediction results in database
-        try:
-            stored_image = await medical_service.store_prediction_results(
-                image_id=medical_image.image_id,
-                prediction_results=prediction_result,
-                overlay_image_base64=prediction_result.get("overlay_image")
-            )
-            
-            # Log successful prediction
-            await log_system_action(
-                db, current_user.user_id, "prediction", 
-                f"Successfully processed {prediction_result.get('scan_type', 'unknown')} scan with {prediction_result.get('disease', 'unknown')} prediction", 
-                str(medical_image.image_id), "medical_image", "success", 
-                ip_address, user_agent
-            )
-            
-            # Return results with database IDs
-            response_data = convert_numpy_types(prediction_result)
-            response_data["image_id"] = str(stored_image.image_id)
-            response_data["processed_at"] = stored_image.processed_at.isoformat()
-            
-            return response_data
-            
-        except Exception as e:
-            await log_system_action(
-                db, current_user.user_id, "prediction", 
-                f"Error storing prediction results: {str(e)}", 
-                str(medical_image.image_id), "medical_image", "error", 
-                ip_address, user_agent
-            )
-            raise HTTPException(500, f"Error storing prediction results: {str(e)}")
+        
+        return {
+            "user_id": str(user.user_id),
+            "username": user.username,
+            "email": user.email,
+            "message": "Use this user_id for the predict endpoint",
+            "predict_endpoint": "/predict"
+        }
         
     except HTTPException:
-        raise  # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        if 'medical_image' in locals():
-            await log_system_action(
-                db, current_user.user_id, "prediction", 
-                f"Unexpected error: {str(e)}", str(medical_image.image_id), 
-                "medical_image", "error", ip_address, user_agent
-            )
-        raise HTTPException(500, f"Unexpected error during prediction: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Authentication error",
+                "message": f"Could not authenticate user: {str(e)}",
+                "action_required": "Please try again or contact support"
+            }
+        )
+
+
+# Keep the list users endpoint for development
+@app.get("/users/list")
+async def list_users(db: AsyncSession = Depends(get_db), limit: int = 10):
+    """
+    Development endpoint to list existing users with their user_ids
+    Remove this in production for security!
+    """
+    try:
+        from sqlalchemy import text
+        
+        query = text("""
+            SELECT user_id, username, email, created_at 
+            FROM users 
+            ORDER BY created_at DESC 
+            LIMIT :limit
+        """)
+        
+        result = await db.execute(query, {"limit": limit})
+        users = result.fetchall()
+        
+        return {
+            "users": [
+                {
+                    "user_id": str(user.user_id),
+                    "username": user.username,
+                    "email": user.email,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                }
+                for user in users
+            ],
+            "total": len(users),
+            "message": "Use any user_id from this list for the predict endpoint",
+            "predict_endpoint": "/predict"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Database error",
+                "message": f"Could not fetch users: {str(e)}",
+                "action_required": "Please check database connection"
+            }
+        )
 
 
 def run_medical_prediction(img: Image.Image) -> dict:
@@ -847,4 +1087,4 @@ async def delete_medical_image(
     return {"message": "Medical image deleted successfully"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8001, reload=True)
