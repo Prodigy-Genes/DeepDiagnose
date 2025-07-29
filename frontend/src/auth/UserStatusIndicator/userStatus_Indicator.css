@@ -558,9 +558,15 @@
   }
   
   .user-dropdown {
-    width: 220px;
-    right: -40px;
-  }
+  /* Increase max-height to accommodate new content */
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Add spacing between components */
+.user-dropdown > * {
+  margin: 0 15px 15px;
+}
   
   .dropdown-header {
     padding: 1rem;

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './userStatus_Indicator.css';
+import MedicalHistoryList from '../../components/MedicalHistoryList/MedicalHistoryList';
+import MedicalStatistics from '../../components/MedicalStatistics/MedicalStatistics';
 
 const UserStatusIndicator = ({ onLoginClick }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [token, setToken] = useState(null); // Add token state
 
   useEffect(() => {
     // Check if user is authenticated on component mount
@@ -29,6 +32,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
     
     try {
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      setToken(token);
       const storedUserData = localStorage.getItem('userData') || sessionStorage.getItem('userData');
       
       console.log('🔑 Token exists:', !!token);
@@ -245,6 +249,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
       {/* Dropdown Menu */}
       {showDropdown && (
         <div className="user-dropdown">
+          
           <div className="dropdown-header">
             <div className="user-email">{user.email}</div>
             <div className="user-role">
@@ -255,20 +260,8 @@ const UserStatusIndicator = ({ onLoginClick }) => {
           
           <div className="dropdown-divider"></div>
           
-          <div className="dropdown-items">
-            <button className="dropdown-item">
-              <i className="fas fa-user-cog"></i>
-              Profile Settings
-            </button>
-            <button className="dropdown-item">
-              <i className="fas fa-history"></i>
-              Analysis History
-            </button>
-            <button className="dropdown-item">
-              <i className="fas fa-shield-alt"></i>
-              Privacy & Security
-            </button>
-          </div>
+          <MedicalStatistics token={token} />
+          <MedicalHistoryList token={token} />
           
           <div className="dropdown-divider"></div>
           
