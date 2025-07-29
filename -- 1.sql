@@ -50,3 +50,6 @@ SELECT indexname, indexdef
 FROM pg_indexes
 WHERE tablename IN ('medical_images', 'system_logs')
 AND indexname LIKE 'idx_%';
+
+ALTER TABLE diagnosis_reports 
+ALTER COLUMN heatmap_url DROP NOT NULL;

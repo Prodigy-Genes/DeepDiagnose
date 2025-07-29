@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, Dict, Any
@@ -9,6 +9,7 @@ from pathlib import Path
 
 from app.db.models.medical_models import MedicalImage, DiagnosisReport, SystemLog
 from app.db.models.user_models import User
+
 
 class MedicalPredictionService:
     """Service for handling medical image predictions and database storage"""
@@ -83,7 +84,10 @@ class MedicalPredictionService:
             medical_image.prediction_results = prediction_results
             medical_image.overlay_image_url = overlay_url
             medical_image.processed = True
-            medical_image.processed_at = datetime.now(timezone.utc)
+            medical_image.processed_at = datetime.now()
+            
+            # Create diagnosis report - with null check handling
+            heatmap_for_report  = overlay_url or "/static/default-heatmap.png"  # Provide a default if needed
             
             # Create diagnosis report
             report = DiagnosisReport(
@@ -96,7 +100,7 @@ class MedicalPredictionService:
                     "anatomy_confidence": prediction_results.get("anatomy_confidence"),
                     "disease_confidence": prediction_results.get("disease_confidence")
                 },
-                recommendations=self._generate_recommendations(prediction_results)
+                recommendations=self._generate_recommendations(prediction_results),
             )
             
             self.db.add(report)
@@ -130,7 +134,7 @@ class MedicalPredictionService:
                 
                 # Update image with error
                 medical_image.processing_error = str(e)
-                medical_image.processed_at = datetime.now(timezone.utc)
+                medical_image.processed_at = datetime.now()
                 await self.db.commit()
             
             raise e

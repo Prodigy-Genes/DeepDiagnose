@@ -20,8 +20,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 import sys
 import os
+import logging
+from sqlalchemy import select, update
+from uuid import UUID, uuid4
+
+
+# Set up proper logger
+logger = logging.getLogger(__name__)
 
 # Add the parent directories to Python path
 current_dir = Path(__file__).resolve().parent
@@ -34,7 +42,7 @@ from app.schemas.user import UserOut
 from app.services.medical_service import MedicalPredictionService
 from app.db.repository.medical_repo import log_system_action
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 
 # Now import your modules
@@ -44,6 +52,10 @@ try:
     from db.models.user_models import User
     from services.medical_service import MedicalPredictionService
     from db.repository.medical_repo import log_system_action
+    from utils import convert_numpy_types
+    from db.models.medical_models import MedicalImage
+    from db.repository.medical_repo import log_system_action
+
 except ImportError as e:
     print(f"Import error: {e}")
     # Alternative import paths
@@ -53,6 +65,10 @@ except ImportError as e:
         from app.db.models.user_models import User
         from app.services.medical_service import MedicalPredictionService
         from app.db.repository.medical_repo import log_system_action
+        from app.utils import convert_numpy_types
+        from app.db.models.medical_models import MedicalImage
+        from app.db.repository.medical_repo import log_system_action
+
     except ImportError as e2:
         print(f"Alternative import also failed: {e2}")
         # Create mock dependencies for development
@@ -63,15 +79,136 @@ except ImportError as e:
         class User:
             def __init__(self):
                 self.user_id = "test_user"
-        class MedicalPredictionService:
-            def __init__(self, db):
-                pass
-            async def create_medical_image_record(self, **kwargs):
-                from types import SimpleNamespace
-                return SimpleNamespace(image_id=uuid.uuid4())
-            async def store_prediction_results(self, **kwargs):
-                from types import SimpleNamespace
-                return SimpleNamespace(image_id=uuid.uuid4(), processed_at=__import__('datetime').datetime.now())
+        
+    class MedicalPredictionService:
+        def __init__(self, db: AsyncSession):
+            self.db = db
+
+        async def create_medical_image_record(
+            self,
+            user_id: str,
+            original_filename: str,
+            image_url: str
+        ) -> MedicalImage:
+            """Create a new medical image record in the database"""
+            try:
+                # Create new medical image record
+                medical_image = MedicalImage(
+                    image_id=uuid4(),
+                    user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
+                    original_filename=original_filename,
+                    image_url=image_url,
+                    uploaded_at=datetime.now(),
+                    processed=False
+                )
+                
+                self.db.add(medical_image)
+                await self.db.commit()
+                await self.db.refresh(medical_image)
+                
+                return medical_image
+                
+            except Exception as e:
+                await self.db.rollback()
+                raise Exception(f"Failed to create medical image record: {str(e)}")
+
+        async def store_prediction_results(
+            self,
+            image_id: UUID,
+            prediction_results: Dict[str, Any],
+            overlay_image_base64: Optional[str] = None
+        ) -> MedicalImage:
+            """Store prediction results in the database with proper numpy type conversion"""
+            try:
+                # Convert numpy types to native Python types
+                clean_results = convert_numpy_types(prediction_results)
+                
+                # Get the medical image record
+                stmt = select(MedicalImage).where(MedicalImage.image_id == image_id)
+                result = await self.db.execute(stmt)
+                medical_image = result.scalar_one_or_none()
+                
+                if not medical_image:
+                    raise Exception(f"Medical image with ID {image_id} not found")
+
+                # Extract individual fields from prediction results
+                scan_type = clean_results.get('scan_type')
+                scan_type_confidence = clean_results.get('scan_type_confidence')
+                anatomy = clean_results.get('anatomy')
+                anatomy_confidence = clean_results.get('anatomy_confidence')
+                disease = clean_results.get('disease')
+                disease_confidence = clean_results.get('disease_confidence')
+                explanation = clean_results.get('explanation')
+
+                # Update the medical image record
+                update_stmt = update(MedicalImage).where(
+                    MedicalImage.image_id == image_id
+                ).values(
+                    processed=True,
+                    scan_type=scan_type,
+                    scan_type_confidence=scan_type_confidence,
+                    anatomy=anatomy,
+                    anatomy_confidence=anatomy_confidence,
+                    disease=disease,
+                    disease_confidence=disease_confidence,
+                    overlay_image_url=overlay_image_base64,
+                    explanation=explanation,
+                    prediction_results=clean_results,  # Now properly converted
+                    processed_at=datetime.now()
+                )
+                
+                await self.db.execute(update_stmt)
+                await self.db.commit()
+                
+                # Refresh the medical image to get updated data
+                await self.db.refresh(medical_image)
+                
+                return medical_image
+                
+            except Exception as e:
+                await self.db.rollback()
+                # Log the error for debugging
+                await log_system_action(
+                    self.db,
+                    user_id=medical_image.user_id,
+                    action="prediction_storage_error",
+                    details=f"Failed to store prediction results: {str(e)}",
+                    resource_id=str(image_id),
+                    resource_type="medical_image",
+                    status="error"
+                )
+                raise Exception(f"Failed to store prediction results: {str(e)}")
+
+        async def get_medical_image(self, image_id: UUID) -> Optional[MedicalImage]:
+            """Get a medical image by ID"""
+            try:
+                stmt = select(MedicalImage).where(MedicalImage.image_id == image_id)
+                result = await self.db.execute(stmt)
+                return result.scalar_one_or_none()
+            except Exception as e:
+                raise Exception(f"Failed to get medical image: {str(e)}")
+
+        async def get_user_medical_images(
+            self,
+            user_id: UUID,
+            limit: int = 50,
+            offset: int = 0,
+            processed_only: bool = False
+        ) -> list[MedicalImage]:
+            """Get medical images for a user with pagination"""
+            try:
+                stmt = select(MedicalImage).where(MedicalImage.user_id == user_id)
+                
+                if processed_only:
+                    stmt = stmt.where(MedicalImage.processed == True)
+                
+                stmt = stmt.order_by(MedicalImage.uploaded_at.desc()).limit(limit).offset(offset)
+                
+                result = await self.db.execute(stmt)
+                return result.scalars().all()
+                
+            except Exception as e:
+                raise Exception(f"Failed to get user medical images: {str(e)}")
         async def log_system_action(*args, **kwargs):
             pass
 
@@ -111,45 +248,77 @@ class UserOut(BaseModel):
 # OAuth2 scheme for extracting tokens
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{AUTH_SERVER_URL}/auth/login")
 
-# Remote auth validation function
+# Enhanced debugging version of get_current_user
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserOut:
     """
-    Validate token with the auth server and get current user
+    Validate token with the auth server and get current user - with enhanced debugging
     """
+    print(f"🔍 [AUTH DEBUG] Starting token validation")
+    print(f"🔑 [AUTH DEBUG] Received token: {token[:20]}..." if token else "❌ [AUTH DEBUG] No token received")
+    print(f"🌐 [AUTH DEBUG] Auth server URL: {AUTH_SERVER_URL}")
+    
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{AUTH_SERVER_URL}/auth/me",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=10.0
-            )
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            auth_url = f"{AUTH_SERVER_URL}/auth/me"
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            
+            print(f"📡 [AUTH DEBUG] Making request to: {auth_url}")
+            print(f"📋 [AUTH DEBUG] Headers: Authorization: Bearer {token[:20]}...")
+            
+            response = await client.get(auth_url, headers=headers)
+            
+            print(f"📝 [AUTH DEBUG] Response status: {response.status_code}")
+            print(f"📄 [AUTH DEBUG] Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 user_data = response.json()
+                print(f"✅ [AUTH DEBUG] Auth successful for user: {user_data.get('username', 'Unknown')}")
+                print(f"👤 [AUTH DEBUG] User data: {user_data}")
+                
                 return UserOut(
                     user_id=user_data["user_id"],
                     username=user_data["username"],
                     email=user_data["email"]
                 )
             elif response.status_code == 401:
+                print(f"❌ [AUTH DEBUG] 401 Unauthorized - Token invalid/expired")
+                try:
+                    error_detail = response.json()
+                    print(f"📄 [AUTH DEBUG] Error response: {error_detail}")
+                except:
+                    print(f"📄 [AUTH DEBUG] Error response text: {response.text}")
+                
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or expired token",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             else:
+                print(f"❌ [AUTH DEBUG] Unexpected status code: {response.status_code}")
+                try:
+                    error_detail = response.json()
+                    print(f"📄 [AUTH DEBUG] Error response: {error_detail}")
+                except:
+                    print(f"📄 [AUTH DEBUG] Error response text: {response.text}")
+                
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication failed",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
                 
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as e:
+        print(f"⏰ [AUTH DEBUG] Timeout error: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service unavailable"
+            detail="Authentication service unavailable - timeout"
         )
     except httpx.RequestError as e:
+        print(f"🌐 [AUTH DEBUG] Request error: {e}")
+        print(f"🔍 [AUTH DEBUG] Error type: {type(e).__name__}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Cannot connect to authentication service: {str(e)}"
@@ -157,6 +326,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserOut:
     except HTTPException:
         raise
     except Exception as e:
+        print(f"🚨 [AUTH DEBUG] Unexpected error: {e}")
+        print(f"🔍 [AUTH DEBUG] Error type: {type(e).__name__}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication error: {str(e)}"
@@ -248,12 +419,81 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 # ----------------------
 # DEBUG ENDPOINT (for token inspection)
 # ----------------------
+# Enhanced debug endpoint
 @app.get("/debug-token")
-async def debug_token(token: str = Depends(oauth2_scheme)):
+async def debug_token(request: Request):
+    headers = request.headers
+    print("🔍 [DEBUG] Inspecting request headers:")
+    
+    # Print all headers for debugging
+    for key, value in headers.items():
+        print(f"📋 [DEBUG] {key}: {value}")
+    
+    # Check for Authorization header
+    if "Authorization" not in headers:
+        print("❌ [DEBUG] No Authorization header found")
+        return {"status": "no_auth_header"}
+    
+    token = headers["Authorization"].split("Bearer ")[-1]
+    print(f"🔑 [DEBUG] Token received: {token[:20]}...")
+    
+    # Validate token with auth server - FIX THIS SECTION
+    auth_response = httpx.get(
+        "http://localhost:8000/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=5.0
+    )
+    
+    # Handle auth server response
+    if auth_response.status_code == 200:
+        user_data = auth_response.json()
+        print(f"✅ [DEBUG] Valid token for user: {user_data['username']}")
+        return {"status": "valid", "user": user_data}
+    else:
+        print(f"❌ [DEBUG] Token validation failed: {auth_response.status_code}")
+        return {"status": "invalid", "error": auth_response.text}
+
+# Test endpoint with auth
+@app.get("/test-auth")
+async def test_auth(current_user: UserOut = Depends(get_current_user)):
     """
-    Echo back the token FastAPI extracted, or 401 if none provided.
+    Simple test endpoint to verify auth is working
     """
-    return {"received_token": token}
+    return {
+        "message": "Authentication successful!",
+        "user": {
+            "user_id": current_user.user_id,
+            "username": current_user.username,
+            "email": current_user.email
+        }
+    }
+
+# Test endpoint that manually checks auth server connectivity
+@app.get("/test-auth-server")
+async def test_auth_server():
+    """
+    Test direct connectivity to auth server
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Test basic connectivity
+            response = await client.get(f"{AUTH_SERVER_URL}/")
+            print(f"🧪 [TEST] Auth server root - Status: {response.status_code}")
+            
+            return {
+                "auth_server_url": AUTH_SERVER_URL,
+                "status": "reachable",
+                "root_status": response.status_code,
+                "message": "Auth server is reachable"
+            }
+    except Exception as e:
+        print(f"🚨 [TEST] Auth server unreachable: {e}")
+        return {
+            "auth_server_url": AUTH_SERVER_URL,
+            "status": "unreachable",
+            "error": str(e),
+            "message": "Cannot reach auth server"
+        }
 
 # ----------------------
 # FASTAPI APP MIDDLEWARE
@@ -592,7 +832,7 @@ def generate_gradcam_overlay(img: Image.Image, x, model, last_conv, label: str):
         overlay = overlay_heatmap(np.array(img.convert('RGB')), heat, alpha=0.4) \
             if np.array_equal(spots, np.array(img.convert('RGB'))) else spots
         
-        return overlay, heat
+        return overlay, heat.tolist() if heat is not None else None
     except Exception as e:
         print(f"Warning: Could not generate Grad-CAM overlay: {e}")
         # Return original image if Grad-CAM fails
@@ -621,6 +861,18 @@ async def predict(
     db = Depends(get_db),
     request: Request = None,
 ):
+    # Log user making the request
+    logger.info(f"📸 Prediction request from user: {current_user.username}")
+    
+     # Log headers for debugging
+    headers = request.headers
+    logger.debug("📋 Prediction request headers:")
+    for key, value in headers.items():
+        logger.debug(f"  {key}: {value}")
+    
+    # Check token exists
+    token = headers.get("authorization", "").replace("Bearer ", "")
+    logger.debug(f"🔑 Token received: {token[:10]}...")
     """Main prediction endpoint with JWT authentication"""
     
     # Validate file type
@@ -945,7 +1197,7 @@ def run_medical_prediction(img: Image.Image) -> dict:
             print(f"Warning: Could not generate explanation: {e}")
             output['explanation'] = "Analysis completed. Please consult with a healthcare professional for detailed interpretation."
 
-        return output
+        return convert_numpy_types(output)
         
     except Exception as e:
         raise e

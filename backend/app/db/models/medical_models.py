@@ -3,6 +3,11 @@ from datetime import datetime, timezone
 from sqlalchemy import String, Text, Boolean, Float, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
+from typing import TYPE_CHECKING
+
+# Add conditional import for type checking
+if TYPE_CHECKING:
+    from .user_models import User  # Import the User model for type hints
 
 class MedicalImage(Base):
     __tablename__ = "medical_images"
@@ -27,8 +32,9 @@ class MedicalImage(Base):
         nullable=False
     )
 
+    # FIX: Use timezone-naive UTC datetime
     uploaded_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc)
+        default=datetime.utcnow  # Changed from lambda: datetime.now(timezone.utc)
     )
 
     processed: Mapped[bool] = mapped_column(
@@ -151,8 +157,9 @@ class DiagnosisReport(Base):
         nullable=True
     )
 
+    # FIX: Use timezone-naive UTC datetime
     generated_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc)
+        default=datetime.utcnow  # Changed from lambda: datetime.now(timezone.utc)
     )
 
     # Optional: Medical professional review
@@ -169,6 +176,7 @@ class DiagnosisReport(Base):
         Text,
         nullable=True
     )
+    heatmap_url = mapped_column(String, nullable=True)
 
     # Relationship
     image: Mapped["MedicalImage"] = relationship(
@@ -221,8 +229,9 @@ class SystemLog(Base):
         nullable=True
     )
 
+    # FIX: Use timezone-naive UTC datetime
     timestamp: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc)
+        default=datetime.utcnow  # Changed from lambda: datetime.now(timezone.utc)
     )
 
     # Status/result of the action

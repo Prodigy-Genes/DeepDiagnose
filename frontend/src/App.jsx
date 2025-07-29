@@ -6,6 +6,9 @@ import Home from "./pages/Home/home";
 import APIDocs from "./pages/API/APIDocs";
 import "./App.css";
 import UploadImage from "./pages/ImageUpload/UploadImage";
+// Conditional import for development only
+// Add lazy loading for debug tools
+const AuthDebugComponent = React.lazy(() => import("./auth/AuthDebug"));
 
 function App() {
   return (
@@ -16,6 +19,17 @@ function App() {
         <Route path="/api-docs" element={<APIDocs />} /> 
         {/* render UploadPage at /upload */}
         <Route path="/upload" element={<UploadImage />} />
+
+
+         {/* Add debug route */}
+        <Route 
+          path="/debug" 
+          element={
+            <React.Suspense fallback={<div>Loading debug tools...</div>}>
+              <AuthDebugComponent />
+            </React.Suspense>
+          } 
+        />
       </Routes>
     </BrowserRouter>
   );

@@ -117,6 +117,9 @@ def upgrade():
         op.create_index('idx_system_logs_timestamp', 'system_logs', ['timestamp'])
     if 'idx_system_logs_action' not in logs_indexes:
         op.create_index('idx_system_logs_action', 'system_logs', ['action'])
+        # Add heatmap_url column to diagnosis_reports
+    if 'heatmap_url' not in diagnosis_columns:
+        op.add_column('diagnosis_reports', sa.Column('heatmap_url', sa.Text(), nullable=True))
 
 
 def downgrade():
@@ -147,6 +150,7 @@ def downgrade():
     op.drop_column('diagnosis_reports', 'confidence_breakdown')
     op.alter_column('diagnosis_reports', 'diagnosis_summary', new_column_name='diagnosis_result')
     op.alter_column('diagnosis_reports', 'overall_confidence', new_column_name='confidence_score')
+    op.drop_column('diagnosis_reports', 'heatmap_url')
     
     # Revert medical_images changes
     op.add_column('medical_images', sa.Column('modality', sa.String(length=20), nullable=False))
@@ -162,3 +166,4 @@ def downgrade():
     op.drop_column('medical_images', 'scan_type_confidence')
     op.drop_column('medical_images', 'scan_type')
     op.drop_column('medical_images', 'original_filename')
+    

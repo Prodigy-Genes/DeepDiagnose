@@ -204,7 +204,102 @@
   line-height: 1.5;
 }
 
+/* User info banner styles */
+.user-info-banner {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 208, 255, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
 
+.user-info-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(0deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px;
+  opacity: 0.3;
+  z-index: -1;
+}
+
+.user-avatar {
+  margin-right: 16px;
+  position: relative;
+}
+
+.user-avatar i {
+  font-size: 32px;
+  color: var(--accent-blue);
+  text-shadow: 0 0 10px rgba(0, 208, 255, 0.5);
+  filter: drop-shadow(0 0 8px rgba(0, 208, 255, 0.3));
+}
+
+.user-details {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.username {
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--text-light);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.user-email {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: 'Roboto', sans-serif;
+  opacity: 0.85;
+}
+
+.user-token {
+  font-size: 12px;
+  background: linear-gradient(135deg, rgba(0, 208, 255, 0.15) 0%, rgba(0, 136, 255, 0.15) 100%);
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--accent-blue);
+  border: 1px solid rgba(0, 208, 255, 0.2);
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 8px rgba(0, 208, 255, 0.1);
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+/* Disabled state for analyze button */
+.button-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  transition: all 0.3s ease;
+}
+
+.button-disabled:hover {
+  opacity: 0.4;
+  transform: none;
+  box-shadow: none;
+}
 
 /* Result section */
 .result-section {
@@ -330,6 +425,33 @@
   .content-container {
     padding: 1.5rem;
   }
+  
+  /* User info banner responsive */
+  .user-info-banner {
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+  
+  .user-avatar {
+    margin-right: 12px;
+  }
+  
+  .user-avatar i {
+    font-size: 28px;
+  }
+  
+  .username {
+    font-size: 16px;
+  }
+  
+  .user-email {
+    font-size: 13px;
+  }
+  
+  .user-token {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -352,5 +474,24 @@
   
   .scanner-text {
     font-size: 1.5rem;
+  }
+  
+  /* User info banner mobile responsive */
+  .user-info-banner {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .user-avatar {
+    margin-right: 0;
+    align-self: center;
+  }
+  
+  .user-details {
+    align-items: center;
+    text-align: center;
+    width: 100%;
   }
 }

@@ -114,7 +114,7 @@ async def update_medical_image_prediction(
     medical_image.prediction_results = prediction_results
     medical_image.overlay_image_url = overlay_image_url
     medical_image.processed = True
-    medical_image.processed_at = datetime.now(timezone.utc)
+    medical_image.processed_at = datetime.utcnow()
     
     await db.commit()
     await db.refresh(medical_image)
