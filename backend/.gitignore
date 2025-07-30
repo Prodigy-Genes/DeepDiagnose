@@ -1,5 +1,5 @@
 .env
-
+storage
 # Ignore Gemma files
 gemma/
 # Python virtual environments

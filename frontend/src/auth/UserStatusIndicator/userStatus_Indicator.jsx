@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import './userStatus_Indicator.css';
-import MedicalHistoryList from '../../components/MedicalHistoryList/MedicalHistoryList';
-import MedicalStatistics from '../../components/MedicalStatistics/MedicalStatistics';
+import MedicalStatisticsModal from '../../components/MedicalStatisticsModal/MedicalStatisticsModal';
+import MedicalHistoryModal from '../../components/MedicalHistoryListModal/MedicalHistoryListModal';
+
 
 const UserStatusIndicator = ({ onLoginClick }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [token, setToken] = useState(null); // Add token state
+  const [token, setToken] = useState(null);
+  
+  // Modal states
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated on component mount
@@ -167,6 +172,29 @@ const UserStatusIndicator = ({ onLoginClick }) => {
     setShowDropdown(!showDropdown);
   };
 
+  const handleMenuItemClick = (action) => {
+    setShowDropdown(false); // Close dropdown first
+    
+    switch (action) {
+      case 'statistics':
+        setShowStatsModal(true);
+        break;
+      case 'history':
+        setShowHistoryModal(true);
+        break;
+      case 'profile':
+        // Handle profile action
+        console.log('Profile clicked');
+        break;
+      case 'settings':
+        // Handle settings action
+        console.log('Settings clicked');
+        break;
+      default:
+        break;
+    }
+  };
+
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -214,7 +242,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
         <button 
           className="login-button" 
           onClick={handleLogin}
-          style={{ cursor: 'pointer' }} // Ensure it's clickable
+          style={{ cursor: 'pointer' }}
         >
           <i className="fas fa-sign-in-alt"></i>
           <span>Sign In</span>
@@ -226,62 +254,95 @@ const UserStatusIndicator = ({ onLoginClick }) => {
   console.log('🔒 Rendering authenticated user interface for:', user.username || user.email);
 
   return (
-    <div className="user-status-indicator">
-      <div className="user-info-container" onClick={toggleDropdown}>
-        <div className="user-avatar">
-          <i className="fas fa-user-md"></i>
-          <div className={`online-status ${isOnline ? 'online' : 'offline'}`}></div>
-        </div>
-        
-        <div className="user-details">
-          <div className="user-name">{user.username || user.name || user.email?.split('@')[0] || 'User'}</div>
-          <div className="user-status">
-            <i className="fas fa-circle status-dot"></i>
-            <span>Authenticated</span>
+    <>
+      <div className="user-status-indicator">
+        <div className="user-info-container" onClick={toggleDropdown}>
+          <div className="user-avatar">
+            <i className="fas fa-user-md"></i>
+            <div className={`online-status ${isOnline ? 'online' : 'offline'}`}></div>
           </div>
-        </div>
-        
-        <div className="dropdown-arrow">
-          <i className={`fas fa-chevron-${showDropdown ? 'up' : 'down'}`}></i>
-        </div>
-      </div>
-
-      {/* Dropdown Menu */}
-      {showDropdown && (
-        <div className="user-dropdown">
           
-          <div className="dropdown-header">
-            <div className="user-email">{user.email}</div>
-            <div className="user-role">
-              <i className="fas fa-stethoscope"></i>
-              Medical Professional
+          <div className="user-details">
+            <div className="user-name">{user.username || user.name || user.email?.split('@')[0] || 'User'}</div>
+            <div className="user-status">
+              <i className="fas fa-circle status-dot"></i>
+              <span>Authenticated</span>
             </div>
           </div>
           
-          <div className="dropdown-divider"></div>
-          
-          <MedicalStatistics token={token} />
-          <MedicalHistoryList token={token} />
-          
-          <div className="dropdown-divider"></div>
-          
-          <div className="dropdown-footer">
-            <button className="logout-btn" onClick={handleLogout}>
-              <i className="fas fa-sign-out-alt"></i>
-              Sign Out
-            </button>
+          <div className="dropdown-arrow">
+            <i className={`fas fa-chevron-${showDropdown ? 'up' : 'down'}`}></i>
           </div>
         </div>
-      )}
 
-      {/* Connection Status Indicator */}
-      {!isOnline && (
-        <div className="connection-warning">
-          <i className="fas fa-wifi-slash"></i>
-          <span>Offline Mode</span>
-        </div>
-      )}
-    </div>
+        {/* Compact Dropdown Menu */}
+        {showDropdown && (
+          <div className="user-dropdown">
+            <div className="dropdown-header">
+              <div className="user-email">{user.email}</div>
+              <div className="user-role">
+                <i className="fas fa-stethoscope"></i>
+                Medical Professional
+              </div>
+            </div>
+            
+            <div className="dropdown-divider"></div>
+            
+            <div className="dropdown-menu">
+              <button 
+                className="dropdown-menu-item"
+                onClick={() => handleMenuItemClick('statistics')}
+              >
+                <i className="fas fa-chart-bar"></i>
+                <span>View Statistics</span>
+                <i className="fas fa-external-link-alt"></i>
+              </button>
+              
+              <button 
+                className="dropdown-menu-item"
+                onClick={() => handleMenuItemClick('history')}
+              >
+                <i className="fas fa-history"></i>
+                <span>Medical Scan History</span>
+                <i className="fas fa-external-link-alt"></i>
+              </button>
+              
+              
+            </div>
+            
+            <div className="dropdown-divider"></div>
+            
+            <div className="dropdown-footer">
+              <button className="logout-btn" onClick={handleLogout}>
+                <i className="fas fa-sign-out-alt"></i>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Connection Status Indicator */}
+        {!isOnline && (
+          <div className="connection-warning">
+            <i className="fas fa-wifi-slash"></i>
+            <span>Offline Mode</span>
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <MedicalStatisticsModal 
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        token={token}
+      />
+      
+      <MedicalHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        token={token}
+      />
+    </>
   );
 };
 

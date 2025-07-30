@@ -1251,7 +1251,7 @@ async def get_user_medical_images(
 @app.get("/medical-images/{image_id}")
 async def get_medical_image_details(
     image_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed information about a specific medical image"""

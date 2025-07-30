@@ -16,7 +16,7 @@ const MedicalHistoryList = ({ token }) => {
     const fetchMedicalHistory = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8000/medical-images', {
+        const response = await fetch('http://localhost:8001/medical-images', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
