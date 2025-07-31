@@ -2,23 +2,20 @@ import React, { useState, useEffect } from 'react';
 import './userStatus_Indicator.css';
 import MedicalStatisticsModal from '../../components/MedicalStatisticsModal/MedicalStatisticsModal';
 import MedicalHistoryModal from '../../components/MedicalHistoryListModal/MedicalHistoryListModal';
-
+import { useAuth } from '../../components/Contexts/AuthContext';
 
 const UserStatusIndicator = ({ onLoginClick }) => {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [token, setToken] = useState(null);
   
   // Modal states
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
+  // Get auth state from context
+  const { user, token, isAuthenticated, loading, logout } = useAuth();
+
   useEffect(() => {
-    // Check if user is authenticated on component mount
-    checkAuthStatus();
-    
     // Set up online/offline detection
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -32,100 +29,16 @@ const UserStatusIndicator = ({ onLoginClick }) => {
     };
   }, []);
 
-  const checkAuthStatus = async () => {
-    console.log('🔍 Checking auth status...');
-    
-    try {
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      setToken(token);
-      const storedUserData = localStorage.getItem('userData') || sessionStorage.getItem('userData');
-      
-      console.log('🔑 Token exists:', !!token);
-      console.log('👤 Stored user data exists:', !!storedUserData);
-      
-      if (!token) {
-        console.log('❌ No token found, user not authenticated');
-        setIsLoading(false);
-        return;
-      }
-
-      // Try to use cached user data first for faster loading
-      if (storedUserData) {
-        try {
-          const cachedUser = JSON.parse(storedUserData);
-          console.log('⚡ Using cached user data:', cachedUser);
-          setUser(cachedUser);
-        } catch (e) {
-          console.error('❌ Failed to parse cached user data:', e);
-        }
-      }
-
-      // Verify token with backend
-      console.log('🔄 Verifying token with backend...');
-      const response = await fetch('http://localhost:8000/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('📝 Backend response status:', response.status);
-
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('✅ Backend verification successful:', userData);
-        setUser(userData);
-        
-        // Update stored user data if it's different
-        const storage = localStorage.getItem('authToken') ? localStorage : sessionStorage;
-        storage.setItem('userData', JSON.stringify(userData));
-      } else {
-        console.log('❌ Backend verification failed, clearing tokens');
-        // Token is invalid, remove it
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('userData');
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('🚨 Auth check failed with error:', error);
-      
-      // If API is unavailable, try to use cached user data
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      const userData = localStorage.getItem('userData') || sessionStorage.getItem('userData');
-      
-      if (token && userData) {
-        try {
-          console.log('🔄 Using cached data as fallback due to network error');
-          setUser(JSON.parse(userData));
-        } catch (e) {
-          console.error('❌ Failed to parse cached user data:', e);
-        }
-      }
-    } finally {
-      console.log('✅ Auth check complete');
-      setIsLoading(false);
-    }
-  };
-
   const handleLogout = () => {
     console.log('🚪 Logging out user...');
     
-    // Clear all authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    sessionStorage.removeItem('authToken');
-    sessionStorage.removeItem('userData');
+    // Use AuthContext logout - this handles all cleanup and routing
+    logout();
     
-    // Reset component state
-    setUser(null);
+    // Close dropdown
     setShowDropdown(false);
     
-    console.log('✅ Logout complete, reloading page...');
-    
-    // Force a complete page reload to reset all component states
-    window.location.reload();
+    console.log('✅ Logout complete');
   };
 
   const handleLogin = () => {
@@ -160,8 +73,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
     
     // If no event handlers, show an alert or redirect
     setTimeout(() => {
-      const isStillLoggedOut = !localStorage.getItem('authToken') && !sessionStorage.getItem('authToken');
-      if (isStillLoggedOut) {
+      if (!isAuthenticated) {
         console.log('🚨 No login handler responded, showing alert');
         alert('Please refresh the page and try logging in again.');
       }
@@ -209,22 +121,8 @@ const UserStatusIndicator = ({ onLoginClick }) => {
     };
   }, [showDropdown]);
 
-  // Add listener for storage changes (useful for multi-tab scenarios)
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'authToken' || e.key === 'userData') {
-        console.log('🔄 Storage change detected, rechecking auth status');
-        checkAuthStatus();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  if (isLoading) {
+  // Show loading state
+  if (loading) {
     return (
       <div className="user-status-indicator loading">
         <div className="status-loader">
@@ -235,7 +133,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
   }
 
   // Show login button when user is not authenticated
-  if (!user) {
+  if (!isAuthenticated || !user) {
     console.log('🔓 Rendering login button - user not authenticated');
     return (
       <div className="user-status-indicator">
@@ -306,8 +204,6 @@ const UserStatusIndicator = ({ onLoginClick }) => {
                 <span>Medical Scan History</span>
                 <i className="fas fa-external-link-alt"></i>
               </button>
-              
-              
             </div>
             
             <div className="dropdown-divider"></div>
