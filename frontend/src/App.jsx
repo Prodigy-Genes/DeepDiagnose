@@ -10,7 +10,7 @@ import UploadImage from "./pages/ImageUpload/UploadImage";
 import "./App.css";
 
 // Conditional import for development only
-const AuthDebugComponent = React.lazy(() => import("./auth/AuthDebug"));
+// const AuthDebugComponent = React.lazy(() => import("./auth/AuthDebug"));
 
 function App() {
   return (
@@ -31,20 +31,8 @@ function App() {
               </ProtectedRoute>
             } 
           />
-
-          {/* Debug route (development only) */}
-          {process.env.NODE_ENV === 'development' && (
-            <Route 
-              path="/debug" 
-              element={
-                <ProtectedRoute>
-                  <React.Suspense fallback={<div>Loading debug tools...</div>}>
-                    <AuthDebugComponent />
-                  </React.Suspense>
-                </ProtectedRoute>
-              } 
-            />
-          )}
+           
+          
         </Routes>
       </AuthProvider>
     </BrowserRouter>
