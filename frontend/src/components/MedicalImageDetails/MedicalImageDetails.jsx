@@ -11,7 +11,7 @@ const MedicalImageDetails = ({ imageId, token }) => {
     const fetchDetails = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:8000/medical-images/${imageId}`, {
+        const response = await fetch(`http://localhost:8001/medical-images/${imageId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -36,7 +36,7 @@ const MedicalImageDetails = ({ imageId, token }) => {
     
     try {
       setDeleting(true);
-      const response = await fetch(`http://localhost:8000/medical-images/${imageId}`, {
+      const response = await fetch(`http://localhost:8001/medical-images/${imageId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

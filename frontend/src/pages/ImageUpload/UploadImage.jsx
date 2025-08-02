@@ -4,7 +4,6 @@ import PredictionResult from "../../components/PredictionResult/PredictionResult
 import "./UploadImage.css";
 import UserStatusIndicator from "../../auth/UserStatusIndicator/userStatus_Indicator";
 import SignIn from "../../auth/Sign-In/SignIn";
-import { Link } from 'react-router-dom';
 
 
 const UploadImage = () => {
@@ -154,16 +153,7 @@ const UploadImage = () => {
           </div>
         </div>
       </footer>
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4">
-          <Link 
-            to="/debug"
-            className="bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-700 transition"
-          >
-            🛠️ Debug Tools
-          </Link>
-        </div>
-      )}
+      
     </div>
   );
 };

@@ -812,7 +812,13 @@ def generate_gradcam_overlay(img: Image.Image, x, model, last_conv, label: str):
         # Generate Grad-CAM heatmap
         heat = make_gradcam_heatmap(x, model, last_conv)
         
-        # Get contour parameters for the specific condition
+        # Skip contours for COVID-19
+        if label.lower() == 'covid-19':
+            # Create heatmap overlay without contours
+            overlay = overlay_heatmap(np.array(img.convert('RGB')), heat, alpha=0.4)
+            return overlay, heat.tolist() if heat is not None else None
+        
+        # Get contour parameters for other conditions
         params = CONTOURS.get(label.lower(), CONTOURS['pneumonia'])  # Default to pneumonia params
         thr = params['threshold']
         
@@ -1251,7 +1257,7 @@ async def get_user_medical_images(
 @app.get("/medical-images/{image_id}")
 async def get_medical_image_details(
     image_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed information about a specific medical image"""
