@@ -25,8 +25,23 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
     window.addEventListener('resize', checkMobile);
 
     // Get auth token and user info from storage
-    const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData') || sessionStorage.getItem('userData');
+    const authToken = localStorage.getItem('access_token') || 
+                 localStorage.getItem('authToken') ||
+                 sessionStorage.getItem('access_token') ||
+                 sessionStorage.getItem('authToken');
+
+const userData = localStorage.getItem('user') || 
+                localStorage.getItem('userData') ||
+                sessionStorage.getItem('user') ||
+                sessionStorage.getItem('userData');
+
+// Add debugging
+console.log('🔍 ImageUpload auth check:', {
+  hasToken: !!authToken,
+  tokenPreview: authToken?.substring(0, 20) + '...',
+  hasUserData: !!userData,
+  allLocalStorage: {...localStorage}
+});
     
     if (authToken) {
       setToken(authToken);

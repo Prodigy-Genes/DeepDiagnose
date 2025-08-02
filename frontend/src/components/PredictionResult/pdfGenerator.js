@@ -22,10 +22,25 @@ export const generateMedicalReport = (result) => {
       <head>
         <title>Medical Analysis Report - ${currentDate}</title>
         <meta charset="UTF-8">
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <style>
+          :root {
+            --primary-dark: rgb(10, 31, 68);
+            --primary-light: rgb(15, 44, 89);
+            --accent-blue: rgb(0, 208, 255);
+            --accent-blue-dark: rgb(0, 136, 255);
+            --text-light: #ffffff;
+            --text-dark: #333333;
+            --grid-color: rgba(0, 208, 255, 0.15);
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+          }
+
           @page {
             size: A4;
             margin: 0.5in;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
           }
           
           * {
@@ -35,123 +50,226 @@ export const generateMedicalReport = (result) => {
           }
           
           body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Roboto', sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: white;
+            color: var(--text-light);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+            min-height: 100vh;
+            position: relative;
+          }
+
+          body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+              linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px,
+              linear-gradient(0deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px;
+            opacity: 0.3;
+            z-index: -1;
+            pointer-events: none;
           }
           
           .report-container {
             max-width: 100%;
             padding: 20px;
+            position: relative;
+            z-index: 1;
           }
           
           /* Header Styles */
           .report-header {
             text-align: center;
             margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #0070f3;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             padding: 30px 20px 20px;
-            border-radius: 8px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .report-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+            z-index: 1;
           }
           
           .logo {
+            font-family: 'Orbitron', sans-serif;
             font-size: 32px;
-            font-weight: bold;
-            color: #0070f3;
-            margin-bottom: 5px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 208, 255, 0.5);
+            filter: drop-shadow(0 0 5px rgba(0, 208, 255, 0.3));
           }
           
           .report-title {
+            font-family: 'Orbitron', sans-serif;
             font-size: 24px;
-            color: #1a202c;
+            color: var(--text-light);
             margin-bottom: 8px;
             font-weight: 600;
+            letter-spacing: 1px;
           }
           
           .report-subtitle {
+            font-family: 'Roboto', sans-serif;
             font-size: 14px;
-            color: #4a5568;
-            margin-bottom: 15px;
+            color: var(--text-light);
+            margin-bottom: 20px;
+            opacity: 0.8;
+            letter-spacing: 0.5px;
           }
           
           .report-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 12px 20px;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            background: rgba(10, 31, 68, 0.5);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 208, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
           }
           
           .meta-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #4a5568;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-light);
+            font-family: 'Roboto', sans-serif;
           }
           
           .meta-icon {
             width: 16px;
             height: 16px;
-            fill: #0070f3;
+            color: var(--accent-blue);
+            filter: drop-shadow(0 0 3px rgba(0, 208, 255, 0.5));
           }
           
           /* Section Styles */
           .report-section {
             margin-bottom: 35px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+            border: 1px solid var(--glass-border);
+            position: relative;
           }
           
           .section-header {
-            background: linear-gradient(135deg, #0070f3 0%, #0056b3 100%);
-            color: white;
-            padding: 15px 20px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+            color: var(--text-light);
+            padding: 18px 25px;
+            font-family: 'Orbitron', sans-serif;
             font-size: 18px;
             font-weight: 600;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .section-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.1) 50%,
+              rgba(255, 255, 255, 0) 100%
+            );
+            animation: shimmer 3s infinite;
+          }
+
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
           }
           
           .section-content {
-            padding: 25px;
+            padding: 30px 25px;
           }
           
           /* Results Grid */
           .results-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
             margin-bottom: 30px;
           }
           
           .result-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            background: #f8fafc;
+            border: 1px solid rgba(0, 208, 255, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            background: rgba(10, 31, 68, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
           }
           
           .result-title {
+            font-family: 'Orbitron', sans-serif;
             font-size: 16px;
             font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 12px;
+            color: var(--text-light);
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            letter-spacing: 0.5px;
+          }
+
+          .result-title svg {
+            color: var(--accent-blue);
+            filter: drop-shadow(0 0 3px rgba(0, 208, 255, 0.5));
           }
           
           .result-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1a202c;
-            margin-bottom: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(0, 208, 255, 0.4);
           }
           
           .confidence-container {
@@ -159,25 +277,31 @@ export const generateMedicalReport = (result) => {
           }
           
           .confidence-label {
+            font-family: 'Roboto', sans-serif;
             font-size: 14px;
-            color: #4a5568;
-            margin-bottom: 6px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            opacity: 0.8;
+            letter-spacing: 0.3px;
           }
           
           .confidence-bar-container {
-            background: #e2e8f0;
-            height: 12px;
-            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            height: 14px;
+            border-radius: 7px;
             overflow: hidden;
             position: relative;
+            border: 1px solid rgba(0, 208, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3) inset;
           }
           
           .confidence-bar {
             height: 100%;
-            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-            border-radius: 6px;
+            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+            border-radius: 7px;
             transition: width 0.3s ease;
             position: relative;
+            box-shadow: 0 0 15px rgba(0, 208, 255, 0.6);
           }
           
           .confidence-bar::after {
@@ -187,94 +311,160 @@ export const generateMedicalReport = (result) => {
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-            animation: shimmer 2s infinite;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+            animation: confidence-shimmer 2s infinite;
           }
           
-          @keyframes shimmer {
+          @keyframes confidence-shimmer {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
           }
           
           .confidence-percentage {
+            font-family: 'Orbitron', sans-serif;
             font-size: 14px;
             font-weight: 600;
-            color: #059669;
-            margin-top: 4px;
+            color: var(--accent-blue);
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 5px rgba(0, 208, 255, 0.3);
           }
           
           /* Explanation Section */
           .explanation-content {
-            background: #f7fafc;
-            border-left: 4px solid #0070f3;
-            padding: 20px;
-            border-radius: 0 8px 8px 0;
-            font-style: italic;
+            background: rgba(10, 31, 68, 0.4);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-left: 4px solid var(--accent-blue);
+            padding: 25px;
+            border-radius: 0 12px 12px 0;
+            font-family: 'Roboto', sans-serif;
             line-height: 1.8;
-            color: #2d3748;
+            color: var(--text-light);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+          }
+
+          .explanation-content::before {
+            content: '"';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 60px;
+            color: var(--accent-blue);
+            opacity: 0.3;
+            font-family: 'Orbitron', sans-serif;
+            line-height: 1;
           }
           
           /* Image Section */
           .image-container {
             text-align: center;
-            margin: 20px 0;
+            margin: 25px 0;
+            position: relative;
           }
           
           .analysis-image {
             max-width: 100%;
             max-height: 400px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(0, 208, 255, 0.3);
+            background: rgba(0, 0, 0, 0.2);
           }
           
           .image-caption {
+            font-family: 'Roboto', sans-serif;
             font-size: 14px;
-            color: #4a5568;
-            margin-top: 10px;
-            font-style: italic;
+            color: var(--text-light);
+            margin-top: 12px;
+            opacity: 0.7;
+            letter-spacing: 0.3px;
           }
           
           /* Footer */
           .report-footer {
             margin-top: 50px;
-            padding: 25px;
-            background: #f7fafc;
-            border-radius: 8px;
-            border-top: 3px solid #0070f3;
+            padding: 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+          }
+
+          .report-footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+            border-radius: 15px 15px 0 0;
           }
           
           .disclaimer {
-            background: #fef7e0;
-            border: 1px solid #f6d55c;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 20px;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
           }
           
           .disclaimer-title {
+            font-family: 'Orbitron', sans-serif;
             font-weight: 600;
-            color: #92400e;
-            margin-bottom: 5px;
+            color: #ffc107;
+            margin-bottom: 8px;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
           }
           
           .disclaimer-text {
+            font-family: 'Roboto', sans-serif;
             font-size: 14px;
-            color: #92400e;
+            color: var(--text-light);
             line-height: 1.6;
+            opacity: 0.9;
           }
           
           .copyright {
             text-align: center;
+            font-family: 'Roboto', sans-serif;
             font-size: 12px;
-            color: #6b7280;
-            margin-top: 15px;
+            color: var(--text-light);
+            opacity: 0.6;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
+          }
+
+          .tech-pattern {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            opacity: 0.1;
+            font-family: 'Orbitron', monospace;
+            font-size: 10px;
+            color: var(--accent-blue);
+            line-height: 1.2;
+            pointer-events: none;
           }
           
           /* Print Optimizations */
           @media print {
             body {
               font-size: 12px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
             
             .report-container {
@@ -294,35 +484,47 @@ export const generateMedicalReport = (result) => {
             .analysis-image {
               max-height: 300px;
             }
+
+            body::before {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .report-header,
+            .report-section,
+            .report-footer {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
           }
           
-          /* Utility Classes */
-          .flex {
-            display: flex;
-          }
-          
-          .items-center {
-            align-items: center;
-          }
-          
-          .justify-between {
-            justify-content: space-between;
-          }
-          
-          .gap-2 {
-            gap: 0.5rem;
-          }
-          
-          .text-center {
-            text-align: center;
-          }
-          
-          .font-semibold {
-            font-weight: 600;
-          }
-          
-          .text-blue-600 {
-            color: #0070f3;
+          /* Responsive Design */
+          @media (max-width: 768px) {
+            .report-container {
+              padding: 15px;
+            }
+            
+            .section-content {
+              padding: 20px 15px;
+            }
+            
+            .results-grid {
+              grid-template-columns: 1fr;
+              gap: 20px;
+            }
+            
+            .report-meta {
+              grid-template-columns: 1fr;
+              gap: 10px;
+            }
+            
+            .logo {
+              font-size: 24px;
+            }
+            
+            .report-title {
+              font-size: 20px;
+            }
           }
         </style>
       </head>
@@ -332,7 +534,7 @@ export const generateMedicalReport = (result) => {
           <header class="report-header">
             <div class="logo">deepdiagnose</div>
             <h1 class="report-title">AI Medical Analysis Report</h1>
-            <p class="report-subtitle">Advanced x-ray Image Analysis</p>
+            <p class="report-subtitle">Advanced X-Ray Image Analysis System</p>
             <div class="report-meta">
               <div class="meta-item">
                 <svg class="meta-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -353,12 +555,18 @@ export const generateMedicalReport = (result) => {
                 <span>Report ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
               </div>
             </div>
+            <div class="tech-pattern">
+              01001001 01000001<br/>
+              11010001 01001000<br/>
+              01000001 01001001<br/>
+              10101010 11110000
+            </div>
           </header>
 
           <!-- Analysis Results Section -->
           <section class="report-section">
             <div class="section-header">
-              📊 Analysis Results
+              🔬 Analysis Results
             </div>
             <div class="section-content">
               <div class="results-grid">
@@ -405,7 +613,7 @@ export const generateMedicalReport = (result) => {
           <!-- Expert Analysis Section -->
           <section class="report-section">
             <div class="section-header">
-              🔬 Expert Analysis
+              🧠 Expert Analysis
             </div>
             <div class="section-content">
               <div class="explanation-content">
@@ -424,7 +632,7 @@ export const generateMedicalReport = (result) => {
             <div class="section-content">
               <div class="image-container">
                 <img src="${overlay_image}" alt="AI Analysis Overlay" class="analysis-image" />
-                <div class="image-caption">AI-generated overlay showing areas of interest in the medical image</div>
+                <div class="image-caption">AI-generated overlay highlighting regions of interest in the medical image</div>
               </div>
             </div>
           </section>
@@ -433,7 +641,9 @@ export const generateMedicalReport = (result) => {
           <!-- Footer -->
           <footer class="report-footer">
             <div class="disclaimer">
-              <div class="disclaimer-title">⚠️ Important Medical Disclaimer</div>
+              <div class="disclaimer-title">
+                ⚠️ Important Medical Disclaimer
+              </div>
               <div class="disclaimer-text">
                 This AI-generated analysis is for informational purposes only and should not replace professional medical advice, diagnosis, or treatment. Always consult with qualified healthcare professionals for medical decisions. The AI system is a diagnostic aid and its results should be interpreted within the context of clinical findings and medical history.
               </div>
@@ -473,7 +683,7 @@ export const downloadPDFReport = (result) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `medical-report-${new Date().toISOString().split('T')[0]}.html`;
+    a.download = `deepdiagnose-report-${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

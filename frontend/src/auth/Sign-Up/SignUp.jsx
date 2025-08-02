@@ -136,11 +136,11 @@ const SignUp = ({ onToggleAuth, onClose }) => {
     };
 
     const redirectToUpload = () => {
-        const uploadUrl = `${window.location.origin}/upload`;
-        window.open(uploadUrl, '_blank', 'noopener,noreferrer');
+        // Use same-window navigation instead of opening new tab
+        window.location.href = '/upload';
     };
 
-    // Handle form submission
+    // Handle form submission - FIXED VERSION
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -167,15 +167,41 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                 const result = await response.json();
                 console.log('Signup successful:', result);
                 
-                // In a real implementation, you would use localStorage/sessionStorage here
-                console.log('User data would be stored:', result);
-                localStorage.setItem('authToken', result.access_token);
-
-                // Redirect to upload page
-                redirectToUpload();
+                // PROBLEM 1 FIX: Signup only returns user_id, not access_token
+                // Need to login after successful signup to get token
+                console.log('Signup successful, now logging in...');
                 
-                // Handle successful signup (e.g., redirect to verification page or auto-login)
-                onClose && onClose();
+                // Automatically log in the user after successful signup
+                const loginResponse = await fetch('http://localhost:8000/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: formData.email,  // Use email for login
+                        password: formData.password
+                    })
+                });
+
+                if (loginResponse.ok) {
+                    const loginResult = await loginResponse.json();
+                    console.log('Auto-login successful:', loginResult);
+                    
+                    // Store token and user data
+                    localStorage.setItem('authToken', loginResult.access_token);
+                    if (loginResult.user) {
+                        localStorage.setItem('userData', JSON.stringify(loginResult.user));
+                    }
+
+                    // Redirect to upload page
+                    redirectToUpload();
+                    
+                    // Close modal
+                    onClose && onClose();
+                } else {
+                    console.error('Auto-login failed after signup');
+                    setErrors({ submit: 'Account created but auto-login failed. Please sign in manually.' });
+                }
             } else {
                 const errorData = await response.json();
                 setErrors({ submit: errorData.detail || 'Signup failed. Please try again.' });
@@ -342,7 +368,6 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                     </div>
 
                     <div className="form-options">
-
                         <label className="checkbox-container">
                             <input
                                 type="checkbox"
