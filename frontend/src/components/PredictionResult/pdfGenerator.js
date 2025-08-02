@@ -434,6 +434,7 @@ export const generateMedicalReport = (result) => {
             color: var(--text-light);
             line-height: 1.6;
             opacity: 0.9;
+            color: var(--text-dark);
           }
           
           .copyright {
