@@ -187,14 +187,7 @@ const UserStatusIndicator = ({ onLoginClick }) => {
             <div className="dropdown-divider"></div>
             
             <div className="dropdown-menu">
-              <button 
-                className="dropdown-menu-item"
-                onClick={() => handleMenuItemClick('statistics')}
-              >
-                <i className="fas fa-chart-bar"></i>
-                <span>View Statistics</span>
-                <i className="fas fa-external-link-alt"></i>
-              </button>
+              
               
               <button 
                 className="dropdown-menu-item"

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const AuthContext = createContext();
@@ -15,83 +15,150 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Use ref to prevent infinite re-initialization
+  const initializationRef = useRef(false);
+  const tokenVerificationRef = useRef(null);
 
   // API base URL
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   // Check if token is expired
-  const isTokenExpired = (token) => {
+  const isTokenExpired = useCallback((token) => {
     if (!token) return true;
     
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const currentTime = Date.now() / 1000;
-      return payload.exp < currentTime;
+      // Add 5 minute buffer to prevent edge cases
+      return payload.exp < (currentTime + 300);
     } catch (error) {
+      console.error('Token parsing error:', error);
       return true;
     }
-  };
+  }, []);
 
   // Clear all auth storage
   const clearAuthStorage = useCallback(() => {
+    console.log('🧹 Clearing auth storage...');
+    
     // Clear all possible token/user storage keys
-    ['authToken', 'access_token', 'userData', 'user'].forEach(key => {
+    const keys = ['authToken', 'access_token', 'userData', 'user'];
+    keys.forEach(key => {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
     });
+    
+    // Clear verification cache
+    tokenVerificationRef.current = null;
   }, []);
 
-  // Verify token with backend
+  // Verify token with backend (with caching to prevent repeated calls)
   const verifyToken = useCallback(async (token) => {
+    // Prevent duplicate verification calls
+    if (tokenVerificationRef.current === token) {
+      console.log('🔄 Token verification already in progress');
+      return null;
+    }
+    
+    tokenVerificationRef.current = token;
+    
     try {
+      console.log('🔍 Verifying token with backend...');
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const userData = await response.json();
+        console.log('✅ Token verified successfully');
         return userData;
+      } else {
+        console.log('❌ Token verification failed:', response.status);
+        return null;
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('🕐 Token verification timeout');
+      } else {
+        console.error('❌ Token verification error:', error);
       }
       return null;
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      return null;
+    } finally {
+      tokenVerificationRef.current = null;
     }
   }, [API_BASE_URL]);
 
+  // Get stored auth data
+  const getStoredAuthData = useCallback(() => {
+    const storedToken = localStorage.getItem('access_token') || 
+                       localStorage.getItem('authToken') ||
+                       sessionStorage.getItem('access_token') ||
+                       sessionStorage.getItem('authToken');
+    
+    const storedUser = localStorage.getItem('user') || 
+                      localStorage.getItem('userData') ||
+                      sessionStorage.getItem('user') ||
+                      sessionStorage.getItem('userData');
+
+    return { storedToken, storedUser };
+  }, []);
+
   // Initialize auth state on app load
   useEffect(() => {
+    // Prevent multiple initializations
+    if (initializationRef.current) {
+      console.log('⚠️ Auth already initialized, skipping...');
+      return;
+    }
+
     const initializeAuth = async () => {
       console.log('🔍 Initializing auth...');
+      initializationRef.current = true;
       
-      // Check both localStorage and sessionStorage for token
-      const storedToken = localStorage.getItem('authToken') || 
-                         localStorage.getItem('access_token') ||
-                         sessionStorage.getItem('authToken') ||
-                         sessionStorage.getItem('access_token');
-      
-      const storedUser = localStorage.getItem('userData') || 
-                        localStorage.getItem('user') ||
-                        sessionStorage.getItem('userData') ||
-                        sessionStorage.getItem('user');
+      try {
+        const { storedToken, storedUser } = getStoredAuthData();
+        
+        console.log('🔑 Found stored token:', !!storedToken);
+        console.log('👤 Found stored user:', !!storedUser);
 
-      console.log('🔑 Found stored token:', !!storedToken);
-      console.log('👤 Found stored user:', !!storedUser);
+        if (!storedToken) {
+          console.log('📭 No stored token found');
+          setLoading(false);
+          setInitialized(true);
+          return;
+        }
 
-      if (storedToken && !isTokenExpired(storedToken)) {
-        // Try cached user data first
+        if (isTokenExpired(storedToken)) {
+          console.log('⏰ Token expired, clearing storage');
+          clearAuthStorage();
+          setLoading(false);
+          setInitialized(true);
+          return;
+        }
+
+        // Set cached data first for immediate UI update
         if (storedUser) {
           try {
             const cachedUser = JSON.parse(storedUser);
             setUser(cachedUser);
             setToken(storedToken);
+            console.log('📦 Using cached user data');
           } catch (e) {
-            console.error('Failed to parse cached user data:', e);
+            console.error('❌ Failed to parse cached user data:', e);
           }
         }
 
@@ -99,39 +166,55 @@ export const AuthProvider = ({ children }) => {
         const userData = await verifyToken(storedToken);
         
         if (userData) {
+          console.log('✅ Token verification successful');
           setToken(storedToken);
           setUser(userData);
           
-          // Update stored user data
-          const storage = localStorage.getItem('authToken') || localStorage.getItem('access_token') 
-                         ? localStorage : sessionStorage;
-          storage.setItem('userData', JSON.stringify(userData));
-          
-          // Auto-redirect to /upload if on home page and authenticated
-          if (location.pathname === '/' || location.pathname === '/login') {
-            console.log('🔄 Auto-redirecting to /upload');
-            navigate('/upload', { replace: true });
+          // Update stored user data if different
+          const currentUserString = JSON.stringify(userData);
+          if (storedUser !== currentUserString) {
+            const storage = localStorage.getItem('access_token') ? localStorage : sessionStorage;
+            storage.setItem('user', currentUserString);
           }
+          
         } else {
-          // Token is invalid, clear all storage
-          console.log('❌ Token invalid, clearing storage');
+          console.log('❌ Token invalid, clearing auth state');
           clearAuthStorage();
+          setToken(null);
+          setUser(null);
         }
-      } else if (storedToken) {
-        // Token exists but is expired
-        console.log('⏰ Token expired, clearing storage');
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error);
         clearAuthStorage();
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+        setInitialized(true);
       }
-
-      setLoading(false);
     };
 
     initializeAuth();
-  }, [navigate, location.pathname, verifyToken, clearAuthStorage]);
+  }, ); // Remove dependencies to prevent re-initialization
+
+  // Handle navigation after auth state is established
+  useEffect(() => {
+    if (!initialized || loading) return;
+
+    const isAuthenticated = !!token && !!user && !isTokenExpired(token);
+    const isAuthPage = ['/login', '/signup', '/forgot-password'].includes(location.pathname);
+    const isHomePage = location.pathname === '/';
+
+    if (isAuthenticated && (isAuthPage || isHomePage)) {
+      console.log('🔄 Auto-redirecting authenticated user to /upload');
+      navigate('/upload', { replace: true });
+    }
+  }, [token, user, initialized, loading, location.pathname, navigate, isTokenExpired]);
 
   const login = async (credentials) => {
     try {
       console.log('🔐 Attempting login...');
+      setLoading(true);
       
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -139,29 +222,26 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: credentials.email || credentials.username, // Backend expects 'username'
+          username: credentials.email || credentials.username,
           password: credentials.password
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Login successful:', data);
+        console.log('✅ Login successful:', { hasToken: !!data.access_token, hasUser: !!data.user });
         
-        // Store token and user data (use primary keys)
+        // Store token and user data
         localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('authToken', data.access_token); // Keep compatibility
         
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
-          localStorage.setItem('userData', JSON.stringify(data.user)); // Keep compatibility
+          setUser(data.user);
         }
         
         setToken(data.access_token);
-        setUser(data.user);
 
-        // Redirect to upload page
-        navigate('/upload', { replace: true });
+        // Navigation will be handled by the useEffect above
         
         return { success: true, data };
       } else {
@@ -178,13 +258,17 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       return { success: false, error: 'Network error occurred' };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signup = async (userData) => {
     try {
+      setLoading(true);
+      
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: {
@@ -201,12 +285,14 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorData.detail || 'Signup failed' };
       }
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('❌ Signup error:', error);
       return { success: false, error: 'Network error occurred' };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     console.log('🚪 Logging out...');
     
     // Clear all auth data
@@ -214,11 +300,15 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     
+    // Reset initialization flag to allow re-initialization
+    initializationRef.current = false;
+    setInitialized(false);
+    
     // Redirect to home page
     navigate('/', { replace: true });
     
     console.log('✅ Logout complete');
-  };
+  }, [clearAuthStorage, navigate]);
 
   const forgotPassword = async (email) => {
     try {
@@ -233,7 +323,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       return { success: response.ok, data };
     } catch (error) {
-      console.error('Forgot password error:', error);
+      console.error('❌ Forgot password error:', error);
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -251,7 +341,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       return { success: response.ok, data };
     } catch (error) {
-      console.error('Verify code error:', error);
+      console.error('❌ Verify code error:', error);
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -273,7 +363,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       return { success: response.ok, data };
     } catch (error) {
-      console.error('Reset password error:', error);
+      console.error('❌ Reset password error:', error);
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -282,7 +372,8 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
-    isAuthenticated: !!token && !!user,
+    initialized,
+    isAuthenticated: !!token && !!user && !isTokenExpired(token),
     login,
     signup,
     logout,
