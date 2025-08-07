@@ -2,12 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import './SignUp.css';
 
 const SignUp = ({ onToggleAuth, onClose }) => {
+    // Form states
+    const [currentStep, setCurrentStep] = useState(1); // 1 = signup form, 2 = OTP verification
     const [formData, setFormData] = useState({
         username: '',
         email: '',
         password: '',
         confirmPassword: ''
     });
+    const [otpData, setOtpData] = useState({
+        otp: '',
+        email: '' // Will be set from formData.email
+    });
+    
+    // UI states
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -15,12 +23,45 @@ const SignUp = ({ onToggleAuth, onClose }) => {
     const [isRevealingPassword, setIsRevealingPassword] = useState(false);
     const [isRevealingConfirmPassword, setIsRevealingConfirmPassword] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [otpTimer, setOtpTimer] = useState(0);
+    const [canResendOtp, setCanResendOtp] = useState(false);
     
+    // Refs
     const usernameInputRef = useRef(null);
     const emailInputRef = useRef(null);
     const passwordInputRef = useRef(null);
     const confirmPasswordInputRef = useRef(null);
+    const otpInputRefs = useRef([]);
     const typingTimeoutRef = useRef(null);
+    const timerRef = useRef(null);
+
+    // OTP Timer Effect
+    useEffect(() => {
+        if (currentStep === 2 && otpTimer > 0) {
+            timerRef.current = setInterval(() => {
+                setOtpTimer(prev => {
+                    if (prev <= 1) {
+                        setCanResendOtp(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [currentStep, otpTimer]);
+
+    // Format timer display
+    const formatTimer = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     // Add typing animation effect
     const handleInputChange = (e) => {
@@ -51,6 +92,37 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         typingTimeoutRef.current = setTimeout(() => {
             inputElement.classList.remove('typing');
         }, 800);
+    };
+
+    // Handle OTP input change
+    const handleOtpChange = (index, value) => {
+        // Only allow digits
+        if (!/^\d*$/.test(value)) return;
+        
+        const newOtp = otpData.otp.split('');
+        newOtp[index] = value;
+        
+        setOtpData(prev => ({
+            ...prev,
+            otp: newOtp.join('')
+        }));
+        
+        // Auto-focus next input
+        if (value && index < 5) {
+            otpInputRefs.current[index + 1]?.focus();
+        }
+        
+        // Clear errors
+        if (errors.otp) {
+            setErrors(prev => ({ ...prev, otp: '' }));
+        }
+    };
+
+    // Handle OTP input keydown
+    const handleOtpKeyDown = (index, e) => {
+        if (e.key === 'Backspace' && !otpData.otp[index] && index > 0) {
+            otpInputRefs.current[index - 1]?.focus();
+        }
     };
 
     // Handle password visibility toggle with reveal animation
@@ -96,7 +168,8 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         }, 1200);
     };
 
-    const validateForm = () => {
+    // Validate signup form
+    const validateSignupForm = () => {
         const newErrors = {};
 
         if (!formData.username.trim()) {
@@ -135,16 +208,28 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Validate OTP
+    const validateOtp = () => {
+        const newErrors = {};
+        
+        if (!otpData.otp || otpData.otp.length !== 6) {
+            newErrors.otp = 'Please enter the complete 6-digit code';
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const redirectToUpload = () => {
         // Use same-window navigation instead of opening new tab
         window.location.href = '/upload';
     };
 
-    // Handle form submission - FIXED VERSION
-    const handleSubmit = async (e) => {
+    // Handle signup form submission (Step 1)
+    const handleSignupSubmit = async (e) => {
         e.preventDefault();
         
-        if (!validateForm()) {
+        if (!validateSignupForm()) {
             return;
         }
 
@@ -165,46 +250,24 @@ const SignUp = ({ onToggleAuth, onClose }) => {
 
             if (response.ok) {
                 const result = await response.json();
-                console.log('Signup successful:', result);
+                console.log('OTP sent successfully:', result);
                 
-                // PROBLEM 1 FIX: Signup only returns user_id, not access_token
-                // Need to login after successful signup to get token
-                console.log('Signup successful, now logging in...');
+                // Move to OTP verification step
+                setOtpData(prev => ({ ...prev, email: formData.email }));
+                setCurrentStep(2);
                 
-                // Automatically log in the user after successful signup
-                const loginResponse = await fetch('http://localhost:8000/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: formData.email,  // Use email for login
-                        password: formData.password
-                    })
-                });
-
-                if (loginResponse.ok) {
-                    const loginResult = await loginResponse.json();
-                    console.log('Auto-login successful:', loginResult);
-                    
-                    // Store token and user data
-                    localStorage.setItem('authToken', loginResult.access_token);
-                    if (loginResult.user) {
-                        localStorage.setItem('userData', JSON.stringify(loginResult.user));
-                    }
-
-                    // Redirect to upload page
-                    redirectToUpload();
-                    
-                    // Close modal
-                    onClose && onClose();
-                } else {
-                    console.error('Auto-login failed after signup');
-                    setErrors({ submit: 'Account created but auto-login failed. Please sign in manually.' });
-                }
+                // Start OTP timer (10 minutes = 600 seconds)
+                setOtpTimer(600);
+                setCanResendOtp(false);
+                
+                // Focus first OTP input
+                setTimeout(() => {
+                    otpInputRefs.current[0]?.focus();
+                }, 100);
+                
             } else {
                 const errorData = await response.json();
-                setErrors({ submit: errorData.detail || 'Signup failed. Please try again.' });
+                setErrors({ submit: errorData.detail || 'Failed to send verification code. Please try again.' });
             }
         } catch (error) {
             console.error('Signup error:', error);
@@ -212,6 +275,104 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Handle OTP verification submission (Step 2)
+    const handleOtpSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!validateOtp()) {
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const response = await fetch('http://localhost:8000/auth/verify-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: otpData.email,
+                    otp: otpData.otp
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Account created successfully:', result);
+                
+                // Store token and user data (user is automatically logged in)
+                localStorage.setItem('authToken', result.access_token);
+                if (result.user) {
+                    localStorage.setItem('userData', JSON.stringify(result.user));
+                }
+
+                // Redirect to upload page
+                redirectToUpload();
+                
+                // Close modal
+                onClose && onClose();
+                
+            } else {
+                const errorData = await response.json();
+                setErrors({ otp: errorData.detail || 'Invalid verification code. Please try again.' });
+            }
+        } catch (error) {
+            console.error('OTP verification error:', error);
+            setErrors({ otp: 'Network error. Please check your connection and try again.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Handle resend OTP
+    const handleResendOtp = async () => {
+        if (!canResendOtp || isLoading) return;
+        
+        setIsLoading(true);
+        
+        try {
+            const response = await fetch('http://localhost:8000/auth/resend-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: otpData.email
+                })
+            });
+
+            if (response.ok) {
+                // Reset timer and clear OTP
+                setOtpTimer(600);
+                setCanResendOtp(false);
+                setOtpData(prev => ({ ...prev, otp: '' }));
+                setErrors({});
+                
+                // Focus first input
+                otpInputRefs.current[0]?.focus();
+                
+            } else {
+                const errorData = await response.json();
+                setErrors({ otp: errorData.detail || 'Failed to resend code. Please try again.' });
+            }
+        } catch (error) {
+            console.error('Resend OTP error:', error);
+            setErrors({ otp: 'Network error. Please try again.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Go back to signup form
+    const goBackToSignup = () => {
+        setCurrentStep(1);
+        setOtpData({ otp: '', email: '' });
+        setOtpTimer(0);
+        setCanResendOtp(false);
+        setErrors({});
     };
 
     const handleTermsClick = () => {
@@ -225,6 +386,9 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
         };
     }, []);
 
@@ -232,8 +396,15 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         <div className="auth-overlay">
             <div className="auth-modal signup-modal">
                 <div className="auth-header">
-                    <h2 className="auth-title">Create Account</h2>
-                    <p className="auth-subtitle">Join DeepDiagnose and start analyzing medical scans</p>
+                    <h2 className="auth-title">
+                        {currentStep === 1 ? 'Create Account' : 'Verify Your Email'}
+                    </h2>
+                    <p className="auth-subtitle">
+                        {currentStep === 1 
+                            ? 'Join DeepDiagnose and start analyzing medical scans'
+                            : `We sent a 6-digit code to ${otpData.email}`
+                        }
+                    </p>
                     {onClose && (
                         <button className="auth-close" onClick={onClose}>
                             <i className="fas fa-times"></i>
@@ -241,186 +412,285 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                     )}
                 </div>
 
-                <form onSubmit={handleSubmit} className="auth-form">
-                    <div className="form-group">
-                        <label htmlFor="username" className="form-label">
-                            <i className="fas fa-user"></i>
-                            Username
-                        </label>
-                        <input
-                            ref={usernameInputRef}
-                            type="text"
-                            id="username"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleInputChange}
-                            className={`form-input ${errors.username ? 'error' : ''}`}
-                            placeholder="Choose a unique username"
-                            disabled={isLoading}
-                            autoComplete="username"
-                        />
-                        {errors.username && (
-                            <span className="error-message">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {errors.username}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="email" className="form-label">
-                            <i className="fas fa-envelope"></i>
-                            Email Address
-                        </label>
-                        <input
-                            ref={emailInputRef}
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            className={`form-input ${errors.email ? 'error' : ''}`}
-                            placeholder="Enter your email address"
-                            disabled={isLoading}
-                            autoComplete="email"
-                        />
-                        {errors.email && (
-                            <span className="error-message">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {errors.email}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="password" className="form-label">
-                            <i className="fas fa-lock"></i>
-                            Password
-                        </label>
-                        <div className="password-container">
+                {currentStep === 1 ? (
+                    // STEP 1: Signup Form
+                    <form onSubmit={handleSignupSubmit} className="auth-form">
+                        <div className="form-group">
+                            <label htmlFor="username" className="form-label">
+                                <i className="fas fa-user"></i>
+                                Username
+                            </label>
                             <input
-                                ref={passwordInputRef}
-                                type={showPassword ? 'text' : 'password'}
-                                id="password"
-                                name="password"
-                                value={formData.password}
+                                ref={usernameInputRef}
+                                type="text"
+                                id="username"
+                                name="username"
+                                value={formData.username}
                                 onChange={handleInputChange}
-                                className={`form-input password-input ${errors.password ? 'error' : ''}`}
-                                placeholder="Create a secure password"
+                                className={`form-input ${errors.username ? 'error' : ''}`}
+                                placeholder="Choose a unique username"
                                 disabled={isLoading}
-                                autoComplete="new-password"
+                                autoComplete="username"
                             />
-                            <button
-                                type="button"
-                                className="password-toggle"
-                                onClick={() => togglePasswordVisibility('password')}
-                                disabled={isLoading || isRevealingPassword}
-                                title={showPassword ? 'Hide password' : 'Show password'}
-                            >
-                                <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                            </button>
+                            {errors.username && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.username}
+                                </span>
+                            )}
                         </div>
-                        {errors.password && (
-                            <span className="error-message">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {errors.password}
-                            </span>
-                        )}
-                        <div className="password-strength">
-                            <small>Must contain uppercase, lowercase, and number (min 8 chars)</small>
-                        </div>
-                    </div>
 
-                    <div className="form-group">
-                        <label htmlFor="confirmPassword" className="form-label">
-                            <i className="fas fa-shield-alt"></i>
-                            Confirm Password
-                        </label>
-                        <div className="password-container">
+                        <div className="form-group">
+                            <label htmlFor="email" className="form-label">
+                                <i className="fas fa-envelope"></i>
+                                Email Address
+                            </label>
                             <input
-                                ref={confirmPasswordInputRef}
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
+                                ref={emailInputRef}
+                                type="email"
+                                id="email"
+                                name="email"
+                                value={formData.email}
                                 onChange={handleInputChange}
-                                className={`form-input password-input ${errors.confirmPassword ? 'error' : ''}`}
-                                placeholder="Confirm your password"
+                                className={`form-input ${errors.email ? 'error' : ''}`}
+                                placeholder="Enter your email address"
                                 disabled={isLoading}
-                                autoComplete="new-password"
+                                autoComplete="email"
                             />
-                            <button
-                                type="button"
-                                className="password-toggle"
-                                onClick={() => togglePasswordVisibility('confirm')}
-                                disabled={isLoading || isRevealingConfirmPassword}
-                                title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                            >
-                                <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                            </button>
+                            {errors.email && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.email}
+                                </span>
+                            )}
                         </div>
-                        {errors.confirmPassword && (
-                            <span className="error-message">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {errors.confirmPassword}
-                            </span>
-                        )}
-                    </div>
 
-                    <div className="form-options">
-                        <label className="checkbox-container">
-                            <input
-                                type="checkbox"
-                                checked={agreedToTerms}
-                                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                                disabled={isLoading}
-                            />
-                            <span className="checkmark"></span>
-                            <span className="checkbox-text">
-                                I agree to the{' '}
+                        <div className="form-group">
+                            <label htmlFor="password" className="form-label">
+                                <i className="fas fa-lock"></i>
+                                Password
+                            </label>
+                            <div className="password-container">
+                                <input
+                                    ref={passwordInputRef}
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    className={`form-input password-input ${errors.password ? 'error' : ''}`}
+                                    placeholder="Create a secure password"
+                                    disabled={isLoading}
+                                    autoComplete="new-password"
+                                />
                                 <button
                                     type="button"
-                                    className="terms-link"
-                                    onClick={handleTermsClick}
-                                    disabled={isLoading}
+                                    className="password-toggle"
+                                    onClick={() => togglePasswordVisibility('password')}
+                                    disabled={isLoading || isRevealingPassword}
+                                    title={showPassword ? 'Hide password' : 'Show password'}
                                 >
-                                    Terms & Conditions
+                                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                                 </button>
-                            </span>
-                        </label>
-                        {errors.terms && (
-                            <span className="error-message">
-                                <i className="fas fa-exclamation-circle"></i>
-                                {errors.terms}
-                            </span>
-                        )}
-                    </div>
-
-                    {errors.submit && (
-                        <div className="submit-error">
-                            <i className="fas fa-exclamation-circle"></i>
-                            {errors.submit}
+                            </div>
+                            {errors.password && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.password}
+                                </span>
+                            )}
+                            <div className="password-strength">
+                                <small>Must contain uppercase, lowercase, and number (min 8 chars)</small>
+                            </div>
                         </div>
-                    )}
 
-                    <button
-                        type="submit"
-                        className={`auth-submit ${isLoading ? 'loading' : ''}`}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <i className="fas fa-spinner fa-spin"></i>
-                                Creating Account...
-                            </>
-                        ) : (
-                            <>
-                                <i className="fas fa-user-plus"></i>
-                                Create Account
-                            </>
+                        <div className="form-group">
+                            <label htmlFor="confirmPassword" className="form-label">
+                                <i className="fas fa-shield-alt"></i>
+                                Confirm Password
+                            </label>
+                            <div className="password-container">
+                                <input
+                                    ref={confirmPasswordInputRef}
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    value={formData.confirmPassword}
+                                    onChange={handleInputChange}
+                                    className={`form-input password-input ${errors.confirmPassword ? 'error' : ''}`}
+                                    placeholder="Confirm your password"
+                                    disabled={isLoading}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => togglePasswordVisibility('confirm')}
+                                    disabled={isLoading || isRevealingConfirmPassword}
+                                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                </button>
+                            </div>
+                            {errors.confirmPassword && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.confirmPassword}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="form-options">
+                            <label className="checkbox-container">
+                                <input
+                                    type="checkbox"
+                                    checked={agreedToTerms}
+                                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                    disabled={isLoading}
+                                />
+                                <span className="checkmark"></span>
+                                <span className="checkbox-text">
+                                    I agree to the{' '}
+                                    <button
+                                        type="button"
+                                        className="terms-link"
+                                        onClick={handleTermsClick}
+                                        disabled={isLoading}
+                                    >
+                                        Terms & Conditions
+                                    </button>
+                                </span>
+                            </label>
+                            {errors.terms && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.terms}
+                                </span>
+                            )}
+                        </div>
+
+                        {errors.submit && (
+                            <div className="submit-error">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {errors.submit}
+                            </div>
                         )}
-                    </button>
-                </form>
+
+                        <button
+                            type="submit"
+                            className={`auth-submit ${isLoading ? 'loading' : ''}`}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                    Sending Code...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-paper-plane"></i>
+                                    Send Verification Code
+                                </>
+                            )}
+                        </button>
+                    </form>
+                ) : (
+                    // STEP 2: OTP Verification Form
+                    <form onSubmit={handleOtpSubmit} className="auth-form otp-form">
+                        <div className="otp-info">
+                            <div className="otp-icon">
+                                <i className="fas fa-envelope-open"></i>
+                            </div>
+                            <p>Check your email for a 6-digit verification code</p>
+                            {otpTimer > 0 && (
+                                <div className="otp-timer">
+                                    <i className="fas fa-clock"></i>
+                                    Code expires in {formatTimer(otpTimer)}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label otp-label">
+                                <i className="fas fa-key"></i>
+                                Verification Code
+                            </label>
+                            <div className="otp-inputs">
+                                {Array.from({ length: 6 }).map((_, index) => (
+                                    <input
+                                        key={index}
+                                        ref={el => otpInputRefs.current[index] = el}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        maxLength="1"
+                                        value={otpData.otp[index] || ''}
+                                        onChange={(e) => handleOtpChange(index, e.target.value)}
+                                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                        className={`otp-input ${errors.otp ? 'error' : ''}`}
+                                        disabled={isLoading}
+                                        autoComplete="one-time-code"
+                                    />
+                                ))}
+                            </div>
+                            {errors.otp && (
+                                <span className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i>
+                                    {errors.otp}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="otp-actions">
+                            <button
+                                type="button"
+                                className={`resend-btn ${canResendOtp && !isLoading ? 'active' : 'disabled'}`}
+                                onClick={handleResendOtp}
+                                disabled={!canResendOtp || isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        Sending...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-redo"></i>
+                                        {canResendOtp ? 'Resend Code' : `Wait ${formatTimer(otpTimer)}`}
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                className="back-btn"
+                                onClick={goBackToSignup}
+                                disabled={isLoading}
+                            >
+                                <i className="fas fa-arrow-left"></i>
+                                Change Email
+                            </button>
+                        </div>
+
+                        <button
+                            type="submit"
+                            className={`auth-submit ${isLoading ? 'loading' : ''}`}
+                            disabled={isLoading || otpData.otp.length !== 6}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                    Verifying...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-check-circle"></i>
+                                    Verify & Create Account
+                                </>
+                            )}
+                        </button>
+                    </form>
+                )}
 
                 <div className="auth-footer">
                     <p>Already have an account?</p>

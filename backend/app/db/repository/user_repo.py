@@ -46,7 +46,7 @@ async def create_user(
     user = User(
         username=user_data.username,
         email=user_data.email,
-        hashed_password=hashed_password
+        password_hash=hashed_password  # FIXED: Changed from hashed_password to password_hash
     )
     
     session.add(user)

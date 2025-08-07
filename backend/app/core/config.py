@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str
     RESET_CODE_EXPIRY_MINUTES: int = 15  # Default value
     frontend_url: str = "http://localhost:3000"
-    otp_expiry_minutes: int = 10
+    OTP_EXPIRY_MINUTES: int = 10
     
     # model configuration
     model_config = ConfigDict(env_file='.env', env_file_encoding='utf-8')

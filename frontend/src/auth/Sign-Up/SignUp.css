@@ -574,3 +574,460 @@
     gap: 0.3rem;
   }
 }
+
+/* ============ OTP VERIFICATION STYLES ============ */
+
+/* OTP Form Styles */
+.otp-form {
+    text-align: center;
+}
+
+.otp-info {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 12px;
+    -webkit-backdrop-filter: blur();
+    backdrop-filter: blur(10px);
+}
+
+.otp-icon {
+    font-size: 2.5rem;
+    color: var(--accent-green);
+    margin-bottom: 1rem;
+    animation: otpIconPulse 2s ease-in-out infinite;
+}
+
+.otp-info p {
+    color: #e2e8f0;
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+
+.otp-timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--warning-color);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    background: rgba(255, 165, 2, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 165, 2, 0.2);
+}
+
+.otp-timer i {
+    animation: timerTick 1s infinite;
+}
+
+/* OTP Input Styles */
+.otp-label {
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.otp-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+.otp-input {
+    width: 50px;
+    height: 50px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: var(--text-light);
+    transition: all 0.3s ease;
+    font-family: 'Orbitron', monospace;
+    -webkit-backdrop-filter: blur();
+    backdrop-filter: blur(10px);
+}
+
+.otp-input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 
+        0 0 15px rgba(0, 255, 136, 0.3),
+        inset 0 0 20px rgba(0, 255, 136, 0.05);
+    transform: scale(1.05);
+    animation: otpInputGlow 1s ease-in-out infinite;
+}
+
+.otp-input.error {
+    border-color: var(--error-color);
+    background: rgba(255, 71, 87, 0.05);
+    animation: errorShake 0.5s ease-in-out;
+}
+
+/* OTP Actions */
+.otp-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.resend-btn, .back-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-light);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+    -webkit-backdrop-filter: blur();
+    backdrop-filter: blur(10px);
+}
+
+.resend-btn.active {
+    background: linear-gradient(135deg, var(--accent-green) 0%, rgba(0, 255, 136, 0.8) 100%);
+    border-color: var(--accent-green);
+    color: var(--primary-dark);
+    font-weight: 600;
+    animation: resendPulse 2s ease-in-out infinite;
+}
+
+.resend-btn.active:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 255, 136, 0.3);
+}
+
+.resend-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
+}
+
+.back-btn:disabled, .resend-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* OTP Animations */
+@keyframes otpIconPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+}
+
+@keyframes timerTick {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+        color: var(--error-color);
+    }
+}
+
+@keyframes otpInputGlow {
+    0%, 100% {
+        box-shadow: 
+            0 0 15px rgba(0, 255, 136, 0.3),
+            inset 0 0 20px rgba(0, 255, 136, 0.05);
+    }
+    50% {
+        box-shadow: 
+            0 0 25px rgba(0, 255, 136, 0.5),
+            inset 0 0 30px rgba(0, 255, 136, 0.1);
+    }
+}
+
+@keyframes resendPulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    }
+}
+
+/* SignUp specific animations (enhance existing ones) */
+@keyframes signupTitleGlow {
+    0%, 100% {
+        text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+    }
+}
+
+@keyframes subtitleFlicker {
+    0%, 100% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+        color: rgba(255, 255, 255, 0.9);
+    }
+}
+
+@keyframes signupIconPulse {
+    0%, 100% {
+        color: var(--accent-green);
+        transform: scale(1);
+    }
+    50% {
+        color: var(--success-color);
+        transform: scale(1.1);
+    }
+}
+
+@keyframes signupInputScan {
+    0%, 100% {
+        box-shadow: 
+            0 0 15px rgba(0, 255, 136, 0.2),
+            inset 0 0 20px rgba(0, 255, 136, 0.05);
+    }
+    50% {
+        box-shadow: 
+            0 0 25px rgba(0, 255, 136, 0.4),
+            inset 0 0 30px rgba(0, 255, 136, 0.1);
+    }
+}
+
+@keyframes signupTypingGlow {
+    0% {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    50% {
+        background: rgba(0, 255, 136, 0.1);
+    }
+    100% {
+        background: rgba(255, 255, 255, 0.08);
+    }
+}
+
+@keyframes typingScan {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes passwordReveal {
+    0% {
+        height: 0%;
+        opacity: 0;
+    }
+    50% {
+        height: 100%;
+        opacity: 0.8;
+    }
+    100% {
+        height: 100%;
+        opacity: 0;
+    }
+}
+
+@keyframes strengthIndicator {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+        background: var(--success-color);
+    }
+}
+
+@keyframes closeButtonPulse {
+    0%, 100% {
+        transform: scale(1.1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+@keyframes checkboxActivate {
+    0% {
+        transform: scale(1);
+        background: rgba(255, 255, 255, 0.05);
+    }
+    50% {
+        transform: scale(1.1);
+        background: var(--accent-green);
+    }
+    100% {
+        transform: scale(1);
+        background: var(--accent-green);
+    }
+}
+
+@keyframes checkmarkDraw {
+    0% {
+        opacity: 0;
+        transform: rotate(45deg) scale(0);
+    }
+    100% {
+        opacity: 1;
+        transform: rotate(45deg) scale(1);
+    }
+}
+
+@keyframes errorShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+@keyframes errorFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes errorPulse {
+    0%, 100% {
+        border-color: rgba(255, 71, 87, 0.3);
+        background: rgba(255, 71, 87, 0.1);
+    }
+    50% {
+        border-color: rgba(255, 71, 87, 0.5);
+        background: rgba(255, 71, 87, 0.15);
+    }
+}
+
+@keyframes gridPulse {
+    0%, 100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes signupGridPulse {
+    0%, 100% {
+        opacity: 0.2;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+/* Responsive Design for OTP */
+@media (max-width: 768px) {
+    .otp-inputs {
+        gap: 0.5rem;
+        margin: 0.8rem 0;
+    }
+    
+    .otp-input {
+        width: 45px;
+        height: 45px;
+        font-size: 1.3rem;
+    }
+    
+    .otp-actions {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    
+    .resend-btn, .back-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .otp-info {
+        padding: 1rem;
+    }
+    
+    .otp-inputs {
+        gap: 0.4rem;
+    }
+    
+    .otp-input {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    
+    .otp-icon {
+        font-size: 2rem;
+    }
+    
+    .auth-title {
+        font-size: 1.4rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 0.85rem;
+        line-height: 1.3;
+    }
+}
+
+/* Enhanced focus states for accessibility */
+.otp-input:focus,
+.resend-btn:focus,
+.back-btn:focus {
+    outline: 2px solid var(--accent-green);
+    outline-offset: 2px;
+}
+
+/* Print styles (hide OTP inputs for security) */
+@media print {
+    .otp-input {
+        visibility: hidden;
+    }
+    
+    .otp-input::after {
+        content: '●';
+        visibility: visible;
+        color: var(--text-light);
+    }
+}

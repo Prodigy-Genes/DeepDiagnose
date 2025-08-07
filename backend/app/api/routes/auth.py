@@ -10,7 +10,7 @@ from app.db.repository.user_repo import get_user_by_email, get_user_by_username
 import random
 import string
 from datetime import datetime, timedelta
-from app.services.email_service import send_reset_email  # Add this import
+from app.services.email_service import send_reset_email, send_otp_email  # Add OTP email service
 import os
 import asyncio
 
@@ -18,7 +18,20 @@ import asyncio
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-# New Pydantic models for forgot password
+# New Pydantic models for OTP verification
+class SignupRequest(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class ResendOTPRequest(BaseModel):
+    email: EmailStr
+
+# Existing forgot password models
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -70,6 +83,64 @@ async def get_current_user(
     
     return user
 
+# OTP Helper Functions
+async def store_otp_code(db: AsyncSession, email: str, otp: str, expires_at: datetime, user_data: dict = None):
+    """Store OTP code and optionally pending user data in database"""
+    from sqlalchemy import text
+    
+    # Insert or update OTP code with pending user data
+    query = text("""
+        INSERT INTO otp_codes (email, otp, expires_at, used, created_at, pending_user_data) 
+        VALUES (:email, :otp, :expires_at, false, :created_at, :user_data)
+        ON CONFLICT (email) DO UPDATE SET 
+            otp = :otp, 
+            expires_at = :expires_at, 
+            used = false,
+            created_at = :created_at,
+            pending_user_data = :user_data
+    """)
+    
+    await db.execute(query, {
+        "email": email,
+        "otp": otp,
+        "expires_at": expires_at,
+        "created_at": datetime.utcnow(),
+        "user_data": user_data
+    })
+    await db.commit()
+
+async def get_otp_code(db: AsyncSession, email: str, otp: str):
+    """Get OTP code details from database"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT otp, expires_at, used, pending_user_data FROM otp_codes 
+        WHERE email = :email AND otp = :otp
+    """)
+    
+    result = await db.execute(query, {"email": email, "otp": otp})
+    return result.fetchone()
+
+async def mark_otp_as_used(db: AsyncSession, email: str, otp: str):
+    """Mark OTP code as used"""
+    from sqlalchemy import text
+    
+    query = text("""
+        UPDATE otp_codes SET used = true 
+        WHERE email = :email AND otp = :otp
+    """)
+    
+    await db.execute(query, {"email": email, "otp": otp})
+    await db.commit()
+
+async def delete_otp_code(db: AsyncSession, email: str):
+    """Delete OTP code after successful verification"""
+    from sqlalchemy import text
+    
+    query = text("DELETE FROM otp_codes WHERE email = :email")
+    await db.execute(query, {"email": email})
+    await db.commit()
+
 # Helper functions for forgot password functionality
 async def store_reset_code(db: AsyncSession, email: str, code: str, expires_at: datetime):
     """Store reset code in database"""
@@ -93,8 +164,6 @@ async def store_reset_code(db: AsyncSession, email: str, code: str, expires_at: 
         "created_at": datetime.utcnow()
     })
     await db.commit()
-    
-    
 
 async def get_reset_code(db: AsyncSession, email: str, code: str):
     """Get reset code details from database"""
@@ -132,14 +201,199 @@ async def update_user_password(db: AsyncSession, email: str, new_password_hash: 
     await db.execute(query, {"password_hash": new_password_hash, "email": email})
     await db.commit()
 
+# NEW OTP-BASED SIGNUP ENDPOINTS
 @router.post("/signup")
-async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Register a new user"""
+async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Step 1: Initiate signup by sending OTP to email
+    Does not create user account yet - just sends OTP
+    """
     try:
-        new_user = await register_user(db, user)
-        return {"message": "User created successfully", "user_id": str(new_user.user_id)}
+        # Check if email or username already exists
+        existing_user_email = await get_user_by_email(db, request.email)
+        if existing_user_email:
+            raise HTTPException(
+                status_code=400, 
+                detail="Email already registered"
+            )
+        
+        existing_user_username = await get_user_by_username(db, request.username)
+        if existing_user_username:
+            raise HTTPException(
+                status_code=400, 
+                detail="Username already taken"
+            )
+        
+        # Basic password validation
+        if len(request.password) < 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be at least 8 characters long"
+            )
+        
+        # Generate 6-digit OTP
+        otp = ''.join(random.choices(string.digits, k=6))
+        
+        # Set expiration
+        expiry_minutes = int(os.getenv("OTP_EXPIRY_MINUTES", 10))
+        expires_at = datetime.utcnow() + timedelta(minutes=expiry_minutes)
+        
+        # Store OTP with pending user data (as JSON string)
+        import json
+        pending_user_data = json.dumps({
+            "email": request.email,
+            "username": request.username,
+            "password": request.password  # We'll hash this later during verification
+        })
+        
+        await store_otp_code(db, request.email, otp, expires_at, pending_user_data)
+        
+        # Send OTP email
+        await asyncio.to_thread(send_otp_email, request.email, otp)
+        
+        return {
+            "message": "OTP sent to your email. Please verify to complete registration.",
+            "expires_in_minutes": expiry_minutes
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        print(f"Error in signup: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during signup"
+        )
+
+@router.post("/verify-otp")
+async def verify_otp(request: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Step 2: Verify OTP and create user account
+    """
+    try:
+        # Get OTP details
+        result = await get_otp_code(db, request.email, request.otp)
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid OTP"
+            )
+        
+        if result.used:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OTP has already been used"
+            )
+        
+        if datetime.utcnow() > result.expires_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OTP has expired. Please request a new one."
+            )
+        
+        # Parse pending user data
+        import json
+        if not result.pending_user_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No pending signup data found"
+            )
+        
+        user_data = json.loads(result.pending_user_data)
+        
+        # Create UserCreate object for registration
+        from app.schemas.user import UserCreate
+        user_create = UserCreate(
+            email=user_data["email"],
+            username=user_data["username"],
+            password=user_data["password"]
+        )
+        
+        # Create the user account
+        new_user = await register_user(db, user_create)
+        
+        # Mark OTP as used and clean up
+        await mark_otp_as_used(db, request.email, request.otp)
+        await delete_otp_code(db, request.email)
+        
+        # Create access token for immediate login
+        access_token = create_access_token(
+            data={
+                "sub": new_user.email,
+                "username": new_user.username,
+                "user_id": str(new_user.user_id)
+            }
+        )
+        
+        return {
+            "message": "Account created and verified successfully!",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "user_id": str(new_user.user_id),
+                "username": new_user.username,
+                "email": new_user.email,
+                "created_at": new_user.created_at.isoformat() if hasattr(new_user, 'created_at') else None
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in verify_otp: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during verification"
+        )
+
+@router.post("/resend-otp")
+async def resend_otp(request: ResendOTPRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Resend OTP for signup verification
+    """
+    try:
+        # Check if there's a pending OTP for this email
+        from sqlalchemy import text
+        
+        query = text("""
+            SELECT pending_user_data FROM otp_codes 
+            WHERE email = :email AND used = false
+        """)
+        
+        result = await db.execute(query, {"email": request.email})
+        otp_record = result.fetchone()
+        
+        if not otp_record or not otp_record.pending_user_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No pending signup found for this email"
+            )
+        
+        # Generate new OTP
+        otp = ''.join(random.choices(string.digits, k=6))
+        expiry_minutes = int(os.getenv("OTP_EXPIRY_MINUTES", 10))
+        expires_at = datetime.utcnow() + timedelta(minutes=expiry_minutes)
+        
+        # Update with new OTP
+        await store_otp_code(db, request.email, otp, expires_at, otp_record.pending_user_data)
+        
+        # Send new OTP
+        await asyncio.to_thread(send_otp_email, request.email, otp)
+        
+        return {
+            "message": "New OTP sent to your email",
+            "expires_in_minutes": expiry_minutes
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in resend_otp: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while resending OTP"
+        )
 
 @router.post("/login")
 async def login(
@@ -195,7 +449,7 @@ async def get_current_user_info(
     """
     return current_user
 
-# NEW FORGOT PASSWORD ENDPOINTS
+# FORGOT PASSWORD ENDPOINTS (unchanged)
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
