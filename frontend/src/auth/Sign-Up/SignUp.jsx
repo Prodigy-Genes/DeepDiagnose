@@ -26,6 +26,12 @@ const SignUp = ({ onToggleAuth, onClose }) => {
     const [otpTimer, setOtpTimer] = useState(0);
     const [canResendOtp, setCanResendOtp] = useState(false);
     
+    // Enhanced email delivery states
+    const [emailSentTime, setEmailSentTime] = useState(null);
+    const [timeElapsed, setTimeElapsed] = useState(0);
+    const [resendCount, setResendCount] = useState(0);
+    const [showEmailTips, setShowEmailTips] = useState(false);
+    
     // Refs
     const usernameInputRef = useRef(null);
     const emailInputRef = useRef(null);
@@ -34,8 +40,9 @@ const SignUp = ({ onToggleAuth, onClose }) => {
     const otpInputRefs = useRef([]);
     const typingTimeoutRef = useRef(null);
     const timerRef = useRef(null);
+    const elapsedTimerRef = useRef(null);
 
-    // OTP Timer Effect
+    // OTP Timer Effect (for expiration)
     useEffect(() => {
         if (currentStep === 2 && otpTimer > 0) {
             timerRef.current = setInterval(() => {
@@ -56,11 +63,96 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         };
     }, [currentStep, otpTimer]);
 
+    // Email elapsed time tracker
+    useEffect(() => {
+        if (emailSentTime && currentStep === 2) {
+            elapsedTimerRef.current = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - emailSentTime) / 1000);
+                setTimeElapsed(elapsed);
+                
+                // Show email tips after 60 seconds
+                if (elapsed >= 60 && !showEmailTips) {
+                    setShowEmailTips(true);
+                }
+                
+                // Enable resend after 60 seconds
+                if (elapsed >= 60 && !canResendOtp && otpTimer > 0) {
+                    setCanResendOtp(true);
+                }
+            }, 1000);
+        }
+        
+        return () => {
+            if (elapsedTimerRef.current) {
+                clearInterval(elapsedTimerRef.current);
+            }
+        };
+    }, [emailSentTime, currentStep, showEmailTips, canResendOtp, otpTimer]);
+
     // Format timer display
     const formatTimer = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // Format elapsed time
+    const formatElapsedTime = (seconds) => {
+        if (seconds < 60) {
+            return `${seconds}s`;
+        }
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
+    };
+
+    // Get email status message based on elapsed time
+    const getEmailStatusMessage = () => {
+        if (timeElapsed < 30) {
+            return {
+                message: "📧 OTP sent! Check your email-Spam if not in inbox",
+                subtext: "Emails typically arrive within 1-2 minutes",
+                type: "info"
+            };
+        } else if (timeElapsed < 60) {
+            return {
+                message: "⏰ Still waiting for the email?",
+                subtext: "This is normal - email delivery can take a moment",
+                type: "info"
+            };
+        } else if (timeElapsed < 180) {
+            return {
+                message: "🔍 Email taking longer than usual?",
+                subtext: "Check your spam folder or try resending",
+                type: "warning"
+            };
+        } else {
+            return {
+                message: "📬 Email delayed?",
+                subtext: "You can resend the code or contact support",
+                type: "warning"
+            };
+        }
+    };
+
+    // Get email troubleshooting tips
+    const getEmailTips = () => {
+        const tips = [
+            "Check your spam/junk folder",
+            "Look for emails from 'DeepDiagnose'",
+            "Make sure you entered the correct email address"
+        ];
+
+        if (timeElapsed > 60) {
+            tips.push("Try the resend button");
+        }
+
+        if (timeElapsed > 180) {
+            tips.push("Try a different email address");
+            tips.push("Disable VPN if you're using one");
+        }
+
+        return tips;
     };
 
     // Add typing animation effect
@@ -256,6 +348,12 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                 setOtpData(prev => ({ ...prev, email: formData.email }));
                 setCurrentStep(2);
                 
+                // Set email sent time for elapsed tracking
+                setEmailSentTime(Date.now());
+                setTimeElapsed(0);
+                setShowEmailTips(false);
+                setResendCount(0);
+                
                 // Start OTP timer (10 minutes = 600 seconds)
                 setOtpTimer(600);
                 setCanResendOtp(false);
@@ -329,7 +427,7 @@ const SignUp = ({ onToggleAuth, onClose }) => {
 
     // Handle resend OTP
     const handleResendOtp = async () => {
-        if (!canResendOtp || isLoading) return;
+        if (!canResendOtp || isLoading || resendCount >= 3) return;
         
         setIsLoading(true);
         
@@ -345,11 +443,14 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             });
 
             if (response.ok) {
-                // Reset timer and clear OTP
+                // Reset timers and increment resend count
                 setOtpTimer(600);
                 setCanResendOtp(false);
                 setOtpData(prev => ({ ...prev, otp: '' }));
                 setErrors({});
+                setEmailSentTime(Date.now());
+                setTimeElapsed(0);
+                setResendCount(prev => prev + 1);
                 
                 // Focus first input
                 otpInputRefs.current[0]?.focus();
@@ -373,6 +474,10 @@ const SignUp = ({ onToggleAuth, onClose }) => {
         setOtpTimer(0);
         setCanResendOtp(false);
         setErrors({});
+        setEmailSentTime(null);
+        setTimeElapsed(0);
+        setShowEmailTips(false);
+        setResendCount(0);
     };
 
     const handleTermsClick = () => {
@@ -388,6 +493,9 @@ const SignUp = ({ onToggleAuth, onClose }) => {
             }
             if (timerRef.current) {
                 clearInterval(timerRef.current);
+            }
+            if (elapsedTimerRef.current) {
+                clearInterval(elapsedTimerRef.current);
             }
         };
     }, []);
@@ -597,18 +705,53 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                 ) : (
                     // STEP 2: OTP Verification Form
                     <form onSubmit={handleOtpSubmit} className="auth-form otp-form">
+                        {/* Enhanced email status section */}
                         <div className="otp-info">
                             <div className="otp-icon">
                                 <i className="fas fa-envelope-open"></i>
                             </div>
-                            <p>Check your email for a 6-digit verification code</p>
-                            {otpTimer > 0 && (
-                                <div className="otp-timer">
-                                    <i className="fas fa-clock"></i>
-                                    Code expires in {formatTimer(otpTimer)}
+                            
+                            <div className="email-status">
+                                <div className={`status-message ${getEmailStatusMessage().type}`}>
+                                    <p className="status-title">{getEmailStatusMessage().message}</p>
+                                    <p className="status-subtitle">{getEmailStatusMessage().subtext}</p>
                                 </div>
-                            )}
+                                
+                                <div className="email-timing">
+                                    <span className="elapsed-time">
+                                        <i className="fas fa-clock"></i>
+                                        Time elapsed: {formatElapsedTime(timeElapsed)}
+                                    </span>
+                                    {otpTimer > 0 && (
+                                        <span className="expiry-time">
+                                            <i className="fas fa-hourglass-half"></i>
+                                            Code expires in {formatTimer(otpTimer)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Email troubleshooting tips */}
+                        {showEmailTips && (
+                            <div className="email-tips">
+                                <h4>
+                                    <i className="fas fa-lightbulb"></i>
+                                    Email not arriving?
+                                </h4>
+                                <ul>
+                                    {getEmailTips().map((tip, index) => (
+                                        <li key={index}>{tip}</li>
+                                    ))}
+                                </ul>
+                                {resendCount > 0 && (
+                                    <p className="resend-count">
+                                        <i className="fas fa-redo"></i>
+                                        Resent {resendCount} time{resendCount > 1 ? 's' : ''}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label className="form-label otp-label">
@@ -644,19 +787,29 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                         <div className="otp-actions">
                             <button
                                 type="button"
-                                className={`resend-btn ${canResendOtp && !isLoading ? 'active' : 'disabled'}`}
+                                className={`resend-btn ${canResendOtp && !isLoading && resendCount < 3 ? 'active' : 'disabled'}`}
                                 onClick={handleResendOtp}
-                                disabled={!canResendOtp || isLoading}
+                                disabled={!canResendOtp || isLoading || resendCount >= 3}
                             >
                                 {isLoading ? (
                                     <>
                                         <i className="fas fa-spinner fa-spin"></i>
                                         Sending...
                                     </>
-                                ) : (
+                                ) : resendCount >= 3 ? (
+                                    <>
+                                        <i className="fas fa-exclamation-triangle"></i>
+                                        Max resends reached
+                                    </>
+                                ) : canResendOtp ? (
                                     <>
                                         <i className="fas fa-redo"></i>
-                                        {canResendOtp ? 'Resend Code' : `Wait ${formatTimer(otpTimer)}`}
+                                        Resend Code
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-clock"></i>
+                                        Wait {60 - (timeElapsed % 60)}s
                                     </>
                                 )}
                             </button>
@@ -671,6 +824,21 @@ const SignUp = ({ onToggleAuth, onClose }) => {
                                 Change Email
                             </button>
                         </div>
+
+                        {/* Contact support for prolonged delays */}
+                        {timeElapsed > 300 && (
+                            <div className="support-section">
+                                <p>Still having trouble? Our support team can help!</p>
+                                <button 
+                                    type="button"
+                                    className="support-btn"
+                                    onClick={() => window.open('mailto:support@deepdiagnose.com', '_blank')}
+                                >
+                                    <i className="fas fa-headset"></i>
+                                    Contact Support
+                                </button>
+                            </div>
+                        )}
 
                         <button
                             type="submit"

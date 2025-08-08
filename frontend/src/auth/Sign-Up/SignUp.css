@@ -1031,3 +1031,466 @@
         color: var(--text-light);
     }
 }
+
+.email-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.status-message {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.status-message.info {
+    background: rgba(0, 208, 255, 0.1);
+    border: 1px solid rgba(0, 208, 255, 0.2);
+}
+
+.status-message.warning {
+    background: rgba(255, 165, 2, 0.1);
+    border: 1px solid rgba(255, 165, 2, 0.2);
+}
+
+.status-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-light);
+}
+
+.status-subtitle {
+    font-size: 0.9rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.4;
+}
+
+/* Email Timing Display */
+.email-timing {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.elapsed-time {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent-blue);
+    font-weight: 500;
+}
+
+.elapsed-time i {
+    animation: clockTick 2s infinite;
+}
+
+.expiry-time {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--warning-color);
+    font-weight: 500;
+}
+
+.expiry-time i {
+    animation: hourglassFlip 3s infinite;
+}
+
+/* Email Tips Section */
+.email-tips {
+    background: rgba(0, 255, 136, 0.05);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    animation: tipsFadeIn 0.5s ease-in-out;
+}
+
+.email-tips h4 {
+    color: var(--accent-green);
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.email-tips h4 i {
+    animation: lightbulbGlow 2s ease-in-out infinite;
+}
+
+.email-tips ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.email-tips li {
+    color: rgba(255, 255, 255, 0.9);
+    padding: 0.4rem 0;
+    font-size: 0.9rem;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.email-tips li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--accent-green);
+    font-weight: bold;
+    animation: checkmarkPulse 2s ease-in-out infinite;
+}
+
+.resend-count {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-style: italic;
+}
+
+.resend-count i {
+    color: var(--accent-blue);
+}
+
+/* Enhanced Resend Button States */
+.resend-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.resend-btn.active {
+    background: linear-gradient(135deg, var(--accent-green) 0%, rgba(0, 255, 136, 0.8) 100%);
+    border-color: var(--accent-green);
+    color: var(--primary-dark);
+    font-weight: 600;
+    animation: resendPulse 2s ease-in-out infinite;
+}
+
+.resend-btn.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.resend-btn.active:hover::before {
+    left: 100%;
+}
+
+.resend-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Support Section */
+.support-section {
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(255, 165, 2, 0.05);
+    border: 1px solid rgba(255, 165, 2, 0.2);
+    border-radius: 12px;
+    margin: 1rem 0;
+    animation: supportSlideIn 0.5s ease-out;
+}
+
+.support-section p {
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0 0 1rem 0;
+    font-size: 0.95rem;
+}
+
+.support-btn {
+    background: linear-gradient(135deg, var(--warning-color) 0%, #ff7675 100%);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.support-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 165, 2, 0.3);
+}
+
+.support-btn:active {
+    transform: translateY(0);
+}
+
+/* Enhanced OTP Input Animations */
+.otp-input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 
+        0 0 15px rgba(0, 255, 136, 0.3),
+        inset 0 0 20px rgba(0, 255, 136, 0.05);
+    transform: scale(1.05);
+    animation: otpInputGlow 1s ease-in-out infinite;
+}
+
+/* New Animations */
+@keyframes tipsFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes supportSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes clockTick {
+    0%, 100% {
+        transform: scale(1);
+        color: var(--accent-blue);
+    }
+    50% {
+        transform: scale(1.1);
+        color: var(--accent-blue-dark);
+    }
+}
+
+@keyframes hourglassFlip {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(180deg);
+    }
+}
+
+@keyframes lightbulbGlow {
+    0%, 100% {
+        color: var(--accent-green);
+        text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+    }
+    50% {
+        color: var(--success-color);
+        text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+    }
+}
+
+@keyframes checkmarkPulse {
+    0%, 100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes resendPulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    }
+}
+
+@keyframes otpInputGlow {
+    0%, 100% {
+        box-shadow: 
+            0 0 15px rgba(0, 255, 136, 0.3),
+            inset 0 0 20px rgba(0, 255, 136, 0.05);
+    }
+    50% {
+        box-shadow: 
+            0 0 25px rgba(0, 255, 136, 0.5),
+            inset 0 0 30px rgba(0, 255, 136, 0.1);
+    }
+}
+
+/* Progressive Enhancement Based on Time Elapsed */
+.status-message.info .status-title::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--accent-blue);
+    border-radius: 50%;
+    margin-left: 0.5rem;
+    animation: statusIndicator 1.5s ease-in-out infinite;
+}
+
+.status-message.warning .status-title::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--warning-color);
+    border-radius: 50%;
+    margin-left: 0.5rem;
+    animation: warningIndicator 1s ease-in-out infinite;
+}
+
+@keyframes statusIndicator {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes warningIndicator {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.3);
+        background: var(--error-color);
+    }
+}
+
+/* Responsive Design for New Elements */
+@media (max-width: 768px) {
+    .email-timing {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .email-tips {
+        padding: 1rem;
+    }
+    
+    .email-tips h4 {
+        font-size: 0.9rem;
+    }
+    
+    .email-tips li {
+        font-size: 0.85rem;
+    }
+    
+    .support-section {
+        padding: 1rem;
+    }
+    
+    .support-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .status-message {
+        padding: 0.8rem;
+    }
+    
+    .status-title {
+        font-size: 1rem;
+    }
+    
+    .status-subtitle {
+        font-size: 0.85rem;
+    }
+    
+    .email-timing {
+        font-size: 0.8rem;
+        padding: 0.6rem;
+    }
+    
+    .email-tips {
+        margin: 0.8rem 0;
+    }
+    
+    .support-section {
+        margin: 0.8rem 0;
+    }
+}
+
+/* Print styles (hide sensitive timing info) */
+@media print {
+    .email-timing,
+    .email-tips,
+    .support-section {
+        display: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .status-message.info {
+        background: rgba(0, 208, 255, 0.2);
+        border-color: var(--accent-blue);
+    }
+    
+    .status-message.warning {
+        background: rgba(255, 165, 2, 0.2);
+        border-color: var(--warning-color);
+    }
+    
+    .email-tips {
+        background: rgba(0, 255, 136, 0.1);
+        border-color: var(--accent-green);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .status-message.info .status-title::after,
+    .status-message.warning .status-title::after,
+    .elapsed-time i,
+    .expiry-time i,
+    .email-tips h4 i {
+        animation: none;
+    }
+    
+    .resend-btn.active {
+        animation: none;
+    }
+    
+    .otpInputGlow,
+    .resendPulse {
+        animation: none;
+    }
+  }

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@fontsource/abril-fatface": "^5.2.6",
+    "@fontsource/orbitron": "^5.2.6",
+    "@fortawesome/fontawesome-free": "^7.0.0",
     "@react-oauth/google": "^0.12.2",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
