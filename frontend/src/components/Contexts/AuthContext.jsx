@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -24,7 +25,8 @@ export const AuthProvider = ({ children }) => {
   const tokenVerificationRef = useRef(null);
 
   // API base URL
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 
   // Check if token is expired
   const isTokenExpired = useCallback((token) => {
