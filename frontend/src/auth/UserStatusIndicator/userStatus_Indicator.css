@@ -1,0 +1,792 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+:root {
+  --primary-dark: rgb(10, 31, 68);
+  --primary-light: rgb(15, 44, 89);
+  --accent-blue: rgb(0, 208, 255);
+  --accent-blue-dark: rgb(0, 136, 255);
+  --accent-green: rgb(0, 255, 136);
+  --text-light: #ffffff;
+  --text-dark: #333333;
+  --grid-color: rgba(0, 208, 255, 0.15);
+  --shadow-color: rgba(0, 0, 0, 0.2);
+  --error-color: #ff4757;
+  --success-color: #2ed573;
+  --scan-color: rgba(0, 255, 136, 0.8);
+  --warning-color: #ffa502;
+}
+
+/* Main User Status Container */
+.user-status-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-family: 'Roboto', sans-serif;
+  z-index: 1000;
+}
+
+.user-status-indicator.loading {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.status-loader {
+  color: var(--accent-blue);
+  font-size: 1rem;
+  animation: pulseLoader 1.5s ease-in-out infinite;
+}
+
+/* Login Button */
+.login-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+  color: var(--text-light);
+  border: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 25px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  box-shadow: 0 4px 15px rgba(0, 208, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.login-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.1) 1px, 
+    transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(0deg, 
+    rgba(255, 255, 255, 0.1) 1px, 
+    transparent 1px) 0 0 / 12px 12px;
+  opacity: 0.3;
+  z-index: -1;
+  border-radius: inherit;
+  animation: loginGridPulse 3s ease-in-out infinite;
+}
+
+.login-button:hover {
+  background: linear-gradient(135deg, var(--accent-blue-dark) 0%, var(--accent-blue) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 208, 255, 0.4);
+  border-color: var(--accent-green);
+}
+
+.login-button:hover::before {
+  opacity: 0.5;
+}
+
+.login-button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(0, 208, 255, 0.3);
+}
+
+.login-button i {
+  font-size: 1rem;
+  animation: loginIconPulse 2s ease-in-out infinite;
+}
+
+.login-button span {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: loginTextGlow 3s ease-in-out infinite alternate;
+}
+
+/* User Info Container */
+.user-info-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  padding: 0.6rem 1rem;
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.user-info-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    var(--grid-color) 1px, 
+    transparent 1px) 0 0 / 15px 15px,
+    linear-gradient(0deg, 
+    var(--grid-color) 1px, 
+    transparent 1px) 0 0 / 15px 15px;
+  opacity: 0.3;
+  z-index: -1;
+  border-radius: inherit;
+  animation: statusGridPulse 4s ease-in-out infinite;
+}
+
+.user-info-container:hover {
+  background: linear-gradient(135deg, 
+    rgba(0, 208, 255, 0.2) 0%, 
+    rgba(0, 136, 255, 0.1) 100%);
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 208, 255, 0.2);
+}
+
+/* User Avatar */
+.user-avatar {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.1rem;
+  animation: avatarGlow 3s ease-in-out infinite alternate;
+}
+
+.user-avatar i {
+  animation: avatarPulse 2s ease-in-out infinite;
+}
+
+/* Online Status Indicator */
+.online-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  transition: all 0.3s ease;
+}
+
+.online-status.online {
+  background: var(--success-color);
+  box-shadow: 0 0 10px rgba(46, 213, 115, 0.6);
+  animation: onlinePulse 2s ease-in-out infinite;
+}
+
+.online-status.offline {
+  background: var(--error-color);
+  animation: offlineBlink 1s ease-in-out infinite;
+}
+
+/* User Details */
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 120px;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-light);
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+  animation: userNameGlow 3s ease-in-out infinite alternate;
+}
+
+.user-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.status-dot {
+  color: var(--accent-green);
+  font-size: 0.5rem;
+  animation: statusDotPulse 2s ease-in-out infinite;
+}
+
+/* Dropdown Menu Container */
+.dropdown-menu {
+  padding: 0.5rem 0;
+}
+
+/* Dropdown Menu Items - For Statistics and History buttons */
+.dropdown-menu-item {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  font-family: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.dropdown-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+  transform-origin: bottom;
+}
+
+.dropdown-menu-item:hover::before {
+  transform: scaleY(1);
+}
+
+.dropdown-menu-item:hover {
+  background: linear-gradient(135deg, 
+    rgba(0, 208, 255, 0.15) 0%, 
+    rgba(0, 255, 136, 0.1) 100%);
+  color: var(--accent-blue);
+  padding-left: 1.5rem;
+  transform: translateX(5px);
+  box-shadow: inset 0 0 20px rgba(0, 208, 255, 0.1);
+}
+
+.dropdown-menu-item:active {
+  transform: translateX(2px);
+  background: linear-gradient(135deg, 
+    rgba(0, 208, 255, 0.2) 0%, 
+    rgba(0, 255, 136, 0.15) 100%);
+}
+
+/* Left side content (icon + text) */
+.dropdown-menu-item > span:first-of-type {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+/* Icons in menu items */
+.dropdown-menu-item i:first-child {
+  width: 16px;
+  text-align: center;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+  color: var(--accent-blue);
+}
+
+.dropdown-menu-item:hover i:first-child {
+  opacity: 1;
+  color: var(--accent-green);
+  transform: scale(1.1);
+  animation: menuIconPulse 2s ease-in-out infinite;
+}
+
+/* Text in menu items */
+.dropdown-menu-item span:not(:first-child):not(:last-child) {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+}
+
+.dropdown-menu-item:hover span:not(:first-child):not(:last-child) {
+  color: var(--text-light);
+  text-shadow: 0 0 10px rgba(0, 208, 255, 0.3);
+}
+
+/* External link icon */
+.dropdown-menu-item .fa-external-link-alt {
+  opacity: 0.5;
+  font-size: 0.75rem;
+  transition: all 0.3s ease;
+  color: var(--accent-blue);
+}
+
+.dropdown-menu-item:hover .fa-external-link-alt {
+  opacity: 1;
+  color: var(--accent-green);
+  transform: translateX(3px) rotate(45deg);
+  animation: externalLinkGlow 2s ease-in-out infinite alternate;
+}
+
+/* Special styling for chart and history icons */
+.dropdown-menu-item .fa-chart-bar {
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dropdown-menu-item .fa-history {
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Add subtle grid pattern on hover */
+.dropdown-menu-item:hover {
+  background-image: 
+    linear-gradient(135deg, rgba(0, 208, 255, 0.15) 0%, rgba(0, 255, 136, 0.1) 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 12px 12px, 12px 12px;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+/* Animations for menu interactions */
+@keyframes menuIconPulse {
+  0%, 100% { transform: scale(1.1); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes externalLinkGlow {
+  0% { 
+    color: var(--accent-green);
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+  }
+  100% { 
+    color: var(--accent-blue);
+    text-shadow: 0 0 10px rgba(0, 208, 255, 0.5);
+  }
+}
+
+/* Loading state for menu items */
+.dropdown-menu-item.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.dropdown-menu-item.loading::after {
+  content: '';
+  position: absolute;
+  right: 1.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(0, 208, 255, 0.3);
+  border-top: 2px solid var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Responsive adjustments for menu items */
+@media (max-width: 768px) {
+  .dropdown-menu-item {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .dropdown-menu-item > span:first-of-type {
+    gap: 0.5rem;
+  }
+  
+  .dropdown-menu-item i:first-child {
+    width: 14px;
+  }
+  
+  .dropdown-menu-item .fa-external-link-alt {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dropdown-menu-item {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .dropdown-menu-item:hover {
+    padding-left: 1.2rem;
+  }
+}
+
+
+/* Dropdown Arrow */
+.dropdown-arrow {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+  margin-left: 0.5rem;
+}
+
+.user-info-container:hover .dropdown-arrow {
+  color: var(--accent-blue);
+  transform: scale(1.1);
+}
+
+/* Dropdown Menu */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(15px);
+  backdrop-filter: blur(15px);
+  animation: dropdownSlideIn 0.3s ease-out;
+  z-index: 1001;
+  overflow: hidden;
+}
+
+.user-dropdown::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(0deg, var(--grid-color) 1px, transparent 1px) 0 0 / 20px 20px;
+  opacity: 0.2;
+  z-index: -1;
+  animation: dropdownGridPulse 4s ease-in-out infinite;
+}
+
+/* Dropdown Arrow Indicator */
+.user-dropdown::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--primary-dark);
+}
+
+/* Dropdown Header */
+.dropdown-header {
+  padding: 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: var(--accent-blue);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  animation: emailGlow 3s ease-in-out infinite alternate;
+}
+
+.user-role {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.user-role i {
+  color: var(--accent-green);
+  animation: roleIconPulse 2s ease-in-out infinite;
+}
+
+/* Dropdown Divider */
+.dropdown-divider {
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  margin: 0.5rem 0;
+}
+
+/* Dropdown Items */
+.dropdown-items {
+  padding: 0.5rem 0;
+}
+
+.dropdown-item {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dropdown-item:hover {
+  background: rgba(0, 208, 255, 0.1);
+  color: var(--accent-blue);
+  padding-left: 1.5rem;
+}
+
+.dropdown-item i {
+  width: 16px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Dropdown Footer */
+.dropdown-footer {
+  padding: 0.8rem 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--error-color) 0%, #d63031 100%);
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+}
+
+.logout-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3);
+  background: linear-gradient(135deg, #d63031 0%, var(--error-color) 100%);
+}
+
+/* Connection Warning */
+.connection-warning {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background: linear-gradient(135deg, var(--warning-color) 0%, #e17055 100%);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 5px 15px rgba(255, 165, 2, 0.3);
+  animation: warningSlideIn 0.3s ease-out;
+  white-space: nowrap;
+  z-index: 999;
+}
+
+/* Animations */
+@keyframes pulseLoader {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes loginGridPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes loginIconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes loginTextGlow {
+  0% { text-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
+  100% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.6); }
+}
+
+@keyframes statusGridPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes avatarGlow {
+  0% { box-shadow: 0 0 5px rgba(0, 208, 255, 0.3); }
+  100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.5); }
+}
+
+@keyframes avatarPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes onlinePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 5px rgba(46, 213, 115, 0.4); }
+  50% { transform: scale(1.2); box-shadow: 0 0 15px rgba(46, 213, 115, 0.8); }
+}
+
+@keyframes offlineBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes userNameGlow {
+  0% { text-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
+  100% { text-shadow: 0 0 10px rgba(0, 208, 255, 0.4); }
+}
+
+@keyframes statusDotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.7; }
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownGridPulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes emailGlow {
+  0% { color: var(--accent-blue); }
+  100% { color: #74b9ff; }
+}
+
+@keyframes roleIconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes warningSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .login-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    gap: 0.4rem;
+  }
+  
+  .login-button i {
+    font-size: 0.9rem;
+  }
+  
+  .user-info-container {
+    padding: 0.5rem 0.8rem;
+    gap: 0.5rem;
+  }
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  
+  .user-details {
+    min-width: 100px;
+  }
+  
+  .user-name {
+    font-size: 0.9rem;
+  }
+  
+  .user-status {
+    font-size: 0.75rem;
+  }
+  
+  .user-dropdown {
+    width: 250px;
+    right: -20px;
+  }
+  
+  .connection-warning {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .login-button span {
+    display: none;
+  }
+  
+  .user-dropdown {
+  /* Increase max-height to accommodate new content */
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Add spacing between components */
+.user-dropdown > * {
+  margin: 0 15px 15px;
+}
+  
+  .dropdown-header {
+    padding: 1rem;
+  }
+  
+  .dropdown-item {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .logout-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
+}

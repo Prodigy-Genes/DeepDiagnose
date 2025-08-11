@@ -3,6 +3,7 @@ import './header.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { NavLink } from 'react-router-dom';
 import GetStarted from './GetStarted';
+import MiniHeader from '../../about-page/header/MiniHeader';
 
 
 export default function Header() {
@@ -49,6 +50,9 @@ export default function Header() {
   }, []);
 
   return (
+   <>
+    {/* Mini header */}
+    <MiniHeader />
     <header className="header-container">
       {/* Video Background */}
       <div className="video-background">
@@ -89,5 +93,6 @@ export default function Header() {
       </div>
       
     </header>
+  </>
   );
 }

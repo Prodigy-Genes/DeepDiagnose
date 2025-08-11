@@ -1,3 +1,7 @@
+.env
+storage
+# Ignore Gemma files
+gemma/
 # Python virtual environments
 .venv/
 venv/
@@ -30,15 +34,6 @@ alembic/versions/*.pyo
 # SQLite (if any used for testing)
 *.sqlite3
 
-
-# Large ML model files
-*.h5
-*.ckpt
-*.pkl
-*.joblib
-*.pb
-*.keras
-*.tflite
 
 # VS Code settings
 .vscode/

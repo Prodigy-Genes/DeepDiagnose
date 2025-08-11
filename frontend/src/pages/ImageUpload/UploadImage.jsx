@@ -2,28 +2,34 @@ import React, { useState, useEffect } from "react";
 import ImageUpload from "../../components/ImageUpload/ImageUpload";
 import PredictionResult from "../../components/PredictionResult/PredictionResult";
 import "./UploadImage.css";
+import UserStatusIndicator from "../../auth/UserStatusIndicator/userStatus_Indicator";
+import SignIn from "../../auth/Sign-In/SignIn";
+
 
 const UploadImage = () => {
-  // State for prediction result
   const [result, setResult] = useState(null);
-  // State for animation control
   const [showAnimation, setShowAnimation] = useState(true);
-  // State to track if image is being processed
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
 
-  // Callback to receive prediction data
+  const handleShowSignIn = () => {
+    console.log('🔓 Opening SignIn modal from UploadImage');
+    setShowSignIn(true);
+  };
+  
+  const handleCloseSignIn = () => {
+    console.log('🔒 Closing SignIn modal');
+    setShowSignIn(false);
+  };
+
+
   const handleResult = (data) => {
     setResult(data);
-    setIsProcessing(false);
   };
 
-  // Handle when upload begins
   const handleUploadStart = () => {
     setResult(null);
-    setIsProcessing(true);
   };
 
-  // Hide intro animation after it plays
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowAnimation(false);
@@ -32,9 +38,30 @@ const UploadImage = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Listen for custom login events as a backup
+  useEffect(() => {
+    const handleLoginRequest = (event) => {
+      console.log('🔓 Login requested via custom event:', event.detail);
+      handleShowSignIn();
+    };
+
+    document.addEventListener('requestLogin', handleLoginRequest);
+    
+    return () => {
+      document.removeEventListener('requestLogin', handleLoginRequest);
+    };
+  }, []);
+
   return (
-    // Main upload page component 
     <div className="upload-page">
+      {/* SignIn Modal - Moved to root level */}
+      {showSignIn && (
+        <SignIn 
+          onToggleAuth={() => {/* handle toggle to signup */}}
+          onClose={handleCloseSignIn}
+        />
+      )}
+      
       {/* Intro animation */}
       {showAnimation && (
         <div className="scanner-animation">
@@ -66,6 +93,9 @@ const UploadImage = () => {
               <span>HIPAA Compliant</span>
             </div>
           </div>
+
+          {/* User status indicator */}
+          <UserStatusIndicator onLoginClick={handleShowSignIn} />
         </div>
       </header>
       
@@ -76,25 +106,10 @@ const UploadImage = () => {
             <div className="section-intro">
               <h2>X-Ray Image Analysis</h2>
               <p className="disclaimer">
-                <strong>Disclaimer:</strong> This tool can only predict <b>Pneumonia</b> and <b>Osteoarthritis</b> from x-ray images.
+                <strong>Disclaimer:</strong> This tool can only predict <b>Pneumonia</b>, <b>Covid-19</b> and <b>Osteoarthritis</b> from x-ray and CT medical scans.
               </p><br />
               <p>Upload your x-ray image to get AI-powered diagnosis assistance in seconds</p>
             </div>
-            
-            {/* Processing visualization */}
-            {isProcessing && (
-              <div className="processing-visualization">
-                <div className="processing-grid">
-                  {[...Array(25)].map((_, index) => (
-                    <div key={index} className="grid-cell"></div>
-                  ))}
-                </div>
-                <div className="processing-text">
-                  <div className="binary-code">01001100 01001111 01000001 01000100 01001001 01001110 01000111</div>
-                  <div className="analyzing-text">Analyzing X-ray patterns...</div>
-                </div>
-              </div>
-            )}
             
             {/* Image upload component */}
             <ImageUpload onResult={handleResult} onUploadStart={handleUploadStart} />
@@ -128,7 +143,6 @@ const UploadImage = () => {
             <div className="tech-desc">On standard test datasets</div>
           </div>
         </div>
-        
       </div>
       
       <footer className="upload-footer">
@@ -139,6 +153,7 @@ const UploadImage = () => {
           </div>
         </div>
       </footer>
+      
     </div>
   );
 };

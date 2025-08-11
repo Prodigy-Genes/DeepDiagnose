@@ -1,0 +1,92 @@
+.history-item {
+  background: rgba(10, 31, 68, 0.5);
+  border: 1px solid rgba(0, 208, 255, 0.2);
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.history-item:hover {
+  background: rgba(15, 44, 89, 0.7);
+  border-color: var(--accent-blue);
+}
+
+.item-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(0, 208, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.item-icon i {
+  font-size: 1.5rem;
+  color: var(--accent-blue);
+}
+
+.item-content {
+  flex-grow: 1;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.item-header h3 {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+}
+
+.confidence-badge {
+  margin-left: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.confidence-badge.high {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+.confidence-badge.medium {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.meta-item i {
+  margin-right: 5px;
+  width: 16px;
+  color: var(--accent-blue);
+}
+
+.item-arrow {
+  margin-left: 15px;
+  color: var(--accent-blue);
+}

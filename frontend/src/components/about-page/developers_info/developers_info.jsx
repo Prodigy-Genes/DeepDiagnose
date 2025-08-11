@@ -8,7 +8,7 @@ const developers = [
         id: 1,
         name: "Owuraku (Amponsah) Oduro ",
         title: "AWS Certified Cloud Practitioner & Java Developer",
-        image: "https://media.licdn.com/dms/image/v2/D4D35AQGum8pNQ3MsmA/profile-framedphoto-shrink_400_400/profile-framedphoto-shrink_400_400/0/1737660719709?e=1747832400&v=beta&t=xVaEPCz76SLRfUnQiGcOtXRmw-sta7r9nUjwO75r8oc", // Online image URL
+        image: "https://media.licdn.com/dms/image/v2/D4D35AQGum8pNQ3MsmA/profile-framedphoto-shrink_400_400/profile-framedphoto-shrink_400_400/0/1737660719709?e=1750759200&v=beta&t=U7Z5mKiX955tvOqPqjqJ72PufmrNGDlFDL_jz4a6Vms", // Online image URL
         linkedin: "https://www.linkedin.com/in/owuraku-oduro-875b91238/overlay/about-this-profile/?lipi=urn%3Ali%3Apage%3Ad_flagship3_profile_view_base%3B%2B14qJjCXQgiQh95SlmnTMw%3D%3D",
         description: "A proactive individual dedicated to positively impacting society, sparking discussions about and contributing to innovation and technology drives.",
         specialty: "Database Management, Cloud Computing, Human-Computer Interaction, Networking"

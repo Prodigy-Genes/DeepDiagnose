@@ -1,52 +1,101 @@
-import React, { useState, useRef } from "react";
-import axios from "axios";
+import React, { useState, useRef, useEffect } from "react";
 import "./ImageUpload.css";
 
-// This component allows users to upload an image and get a prediction from the server
 const ImageUpload = ({ onResult, onUploadStart }) => {
-  const [image, setImage] = useState(null); // State to manage the uploaded image
-  const [loading, setLoading] = useState(false); // State to manage loading state
-  const [dragActive, setDragActive] = useState(false); // State to manage drag and drop
-  const [previewUrl, setPreviewUrl] = useState(null); // State to manage the preview URL of the image
-  const fileInputRef = useRef(null); // Ref to manage the file input element
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const [token, setToken] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    // Get auth token and user info from storage
+    const authToken = localStorage.getItem('access_token') || 
+                 localStorage.getItem('authToken') ||
+                 sessionStorage.getItem('access_token') ||
+                 sessionStorage.getItem('authToken');
+
+const userData = localStorage.getItem('user') || 
+                localStorage.getItem('userData') ||
+                sessionStorage.getItem('user') ||
+                sessionStorage.getItem('userData');
+
+// Add debugging
+console.log('🔍 ImageUpload auth check:', {
+  hasToken: !!authToken,
+  tokenPreview: authToken?.substring(0, 20) + '...',
+  hasUserData: !!userData,
+  allLocalStorage: {...localStorage}
+});
+    
+    if (authToken) {
+      setToken(authToken);
+    }
+    
+    if (userData) {
+      try {
+        setUserInfo(JSON.parse(userData));
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
+      }
+    }
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleFileChange = (file) => {
     if (!file) return;
+    setError(null);
+    
+    const validTypes = ['image/jpeg', 'image/png', 'image/dicom'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.dcm')) {
+      setError("Please upload a valid image (JPEG, PNG or DICOM format)");
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size exceeds 10MB limit");
+      return;
+    }
     
     setImage(file);
     
-    // Create preview URL
     const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewUrl(reader.result);
-    };
+    reader.onload = () => setPreviewUrl(reader.result);
+    reader.onerror = () => setError("Failed to read file. Please try again.");
     reader.readAsDataURL(file);
   };
 
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileChange(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer.files?.[0]) handleFileChange(e.dataTransfer.files[0]);
   };
 
-  const handleClick = () => {
-    fileInputRef.current.click();
-  };
+  const handleFileClick = () => fileInputRef.current.click();
+  const handleCameraClick = () => cameraInputRef.current.click();
 
   const handleSubmit = async () => {
     if (!image) return;
@@ -55,16 +104,42 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
     formData.append("file", image);
     
     setLoading(true);
-    // Notify parent component that upload has started
-    if (onUploadStart) {
-      onUploadStart();
+    setError(null);
+    onUploadStart?.();
+    
+    if (!token) {
+      setError("Authentication required. Please log in to use this feature.");
+      setLoading(false);
+      return;
     }
     
     try {
-      const response = await axios.post("http://localhost:8000/predict", formData);
-      onResult(response.data);
+      const response = await fetch("http://127.0.0.1:8001/predict", {
+        method: 'POST',
+        body: formData,
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Server error. Please try again.");
+      }
+      
+      onResult(await response.json());
     } catch (err) {
-      alert("Prediction failed! Please try again.");
+      if (err.message.includes("401")) {
+        setError("Session expired. Please log in again.");
+      } else if (err.message.includes("X-ray")) {
+        setError("This doesn't appear to be an X-ray image. Please upload a valid X-ray scan.");
+      } else if (err.message.includes("clearer image")) {
+        setError("The image quality is too low for analysis. Please upload a clearer X-ray image.");
+      } else if (err.name === "AbortError") {
+        setError("Request timed out. Please check your connection and try again.");
+      } else if (!navigator.onLine) {
+        setError("You appear to be offline. Please check your internet connection.");
+      } else {
+        setError(err.message || "Analysis failed. Please try again with a different image.");
+      }
     } finally {
       setLoading(false);
     }
@@ -73,70 +148,125 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
   const resetImage = () => {
     setImage(null);
     setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   return (
     <div className="image-upload-container">
       <div className="upload-card">
-        {!previewUrl ? (
-          <div 
-            className={`dropzone ${dragActive ? "dropzone-active" : ""}`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={handleClick}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={(e) => handleFileChange(e.target.files[0])}
-              accept="image/*"
-              className="file-input"
-            />
-            <div className="dropzone-content">
-              <div className="lungs-icon">
-                <svg 
-                  width="60" 
-                  height="60" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path 
-                    d="M12 2C10.5 2 9.5 3 9.5 4.5V9.5C9.5 11 6 13 6 17C6 19.5 7.5 22 11 22C13 22 14 21 14 19.5V13" 
-                    stroke="currentColor" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                  />
-                  <path 
-                    d="M12 2C13.5 2 14.5 3 14.5 4.5V9.5C14.5 11 18 13 18 17C18 19.5 16.5 22 13 22C11 22 10 21 10 19.5V13" 
-                    stroke="currentColor" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                  />
-                </svg>
-              </div>
-              <div className="dropzone-text-container">
-                <p className="dropzone-title">Upload X-Ray Image</p>
-                <p className="dropzone-text">Drag and drop an x-ray image here, or click to select</p>
-                <p className="dropzone-hint">DICOM, JPG, PNG formats supported up to 10MB</p>
-              </div>
+        {userInfo && (
+          <div className="user-info-banner">
+            <div className="user-avatar">
+              <i className="fas fa-user-circle"></i>
+            </div>
+            <div className="user-details">
+              <span className="username">{userInfo.username}</span>
+              <span className="user-email">{userInfo.email}</span>
+            </div>
+            <div className="user-token">
+              <span>Token: {token ? `${token.substring(0, 10)}...` : 'None'}</span>
             </div>
           </div>
+        )}
+
+        {error && (
+          <div className="error-message">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v4h2v-4h-2zm0-6v2h2V5h-2z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>{error}</span>
+            <button className="dismiss-error" onClick={() => setError(null)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 18L18 6M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {!previewUrl ? (
+          <>
+            <div
+              className={`dropzone ${dragActive ? "dropzone-active" : ""} ${error ? "dropzone-error" : ""}`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={!isMobile ? handleFileClick : undefined}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => handleFileChange(e.target.files[0])}
+                accept="image/*,.dcm"
+                className="file-input"
+              />
+              <input
+                type="file"
+                ref={cameraInputRef}
+                onChange={(e) => handleFileChange(e.target.files[0])}
+                accept="image/*"
+                capture="environment"
+                className="camera-input"
+              />
+              <div className="dropzone-content">
+                <div className="lungs-icon">
+                  <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 2C10.5 2 9.5 3 9.5 4.5V9.5C9.5 11 6 13 6 17C6 19.5 7.5 22 11 22C13 22 14 21 14 19.5V13"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M12 2C13.5 2 14.5 3 14.5 4.5V9.5C14.5 11 18 13 18 17C18 19.5 16.5 22 13 22C11 22 10 21 10 19.5V13"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div className="dropzone-text-container">
+                  <p className="dropzone-title">Upload X-Ray Image</p>
+                  <p className="dropzone-text">Drag and drop an x-ray image here, or click to select</p>
+                  <p className="dropzone-hint">DICOM, JPG, PNG formats supported up to 10MB</p>
+                </div>
+              </div>
+            </div>
+
+            {isMobile && (
+              <div className="mobile-upload-buttons">
+                <button className="camera-button" onClick={handleCameraClick}>
+                  <div className="camera-button-content">
+                    <div className="camera-button-icon">
+                      <i className="fas fa-camera"></i>
+                    </div>
+                    <div className="camera-button-text">
+                      <span className="camera-button-title">Take Photo</span>
+                      <span className="camera-button-subtitle">Capture X-ray image</span>
+                    </div>
+                  </div>
+                  <div className="camera-button-glow"></div>
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="preview-container">
-            <div className="image-preview-wrapper">
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
-                className="image-preview"
-              />
+            <div className={`image-preview-wrapper ${error ? "preview-error" : ""}`}>
+              <img src={previewUrl} alt="Preview" className="image-preview" />
               <div className="overlay-grid">
                 {[...Array(9)].map((_, index) => (
                   <div key={index} className="grid-square"></div>
@@ -152,60 +282,57 @@ const ImageUpload = ({ onResult, onUploadStart }) => {
                   <span className="stat-value">X-Ray</span>
                 </div>
               </div>
-              <button 
-                onClick={resetImage}
-                className="remove-button"
-                title="Remove image"
-              >
-                <svg 
-                  className="remove-icon" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+              <button onClick={resetImage} className="remove-button" title="Remove image">
+                <svg className="remove-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             <div className="file-info-container">
               <div className="file-info">
                 <i className="fas fa-file-medical"></i>
-                <span>{image.name} ({(image.size / 1024).toFixed(1)} KB)</span>
+                <span>
+                  {image.name} ({(image.size / 1024).toFixed(1)} KB)
+                </span>
               </div>
             </div>
           </div>
         )}
-        
+
         <div className="button-container">
           <button
             onClick={handleSubmit}
-            disabled={!image || loading}
-            className={`analyze-button ${(!image || loading) ? "button-disabled" : ""}`}
+            disabled={!image || loading || !token}
+            className={`analyze-button ${(!image || loading || !token) ? "button-disabled" : ""}`}
           >
-            {loading ? (
-              <>
-                <svg className="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="spinner-track" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="spinner-path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
+            {!loading ? (
               <>
                 <span className="button-icon">
                   <i className="fas fa-brain"></i>
                 </span>
                 <span>Analyze with AI</span>
               </>
+            ) : (
+              <span>Initializing...</span>
             )}
           </button>
         </div>
+
+        {loading && (
+          <div className="processing-visualization">
+            <div className="processing-grid">
+              {[...Array(25)].map((_, index) => (
+                <div key={index} className="grid-cell"></div>
+              ))}
+            </div>
+            <div className="processing-text">
+              <div className="binary-code">
+                01001100 01001111 01000001 01000100 01001001 01001110 01000111
+              </div>
+              <div className="analyzing-text">Analyzing X-ray patterns...</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
